@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('parent_id')->nullable()->constrained('categories')->onDelete('cascade');
             $table->string('name');
+            $table->boolean('is_deleted')->default(false);
             $table->timestamps();
         });
     }

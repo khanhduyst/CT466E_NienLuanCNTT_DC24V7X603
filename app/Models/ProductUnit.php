@@ -3,28 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductUnit extends Model
 {
-    protected $fillable = [
-        'product_id',
-        'unit_name',
-        'conversion_factor',
-        'cost_price',
-        'sale_price',
-        'stock_quantity',
-        'is_base_unit',
-    ];
+    protected $fillable = ['product_id', 'unit_name', 'conversion_rate', 'base_price', 'sale_price', 'is_base'];
 
-    public function product(): BelongsTo
+    public function product()
     {
-        return $this->belongsTo(Product::class);
-    }
-
-    public function orderItems(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
+        return $this->belongsTo(Product::class, 'product_id');
     }
 }

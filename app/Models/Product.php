@@ -3,41 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    protected $fillable = [
-        'category_id',
-        'barcode',
-        'name',
-        'minimum_stock_level',
-        'is_active',
-    ];
+    protected $fillable = ['category_id', 'barcode', 'name', 'image', 'is_deleted'];
 
-    public function category(): BelongsTo
+    public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
-    public function units(): HasMany
+    public function units()
     {
-        return $this->hasMany(ProductUnit::class);
-    }
-
-    public function batches(): HasMany
-    {
-        return $this->hasMany(Batch::class);
-    }
-
-    public function orderItems(): HasMany
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
-    public function inventoryLogs(): HasMany
-    {
-        return $this->hasMany(InventoryLog::class);
+        return $this->hasMany(ProductUnit::class, 'product_id');
     }
 }

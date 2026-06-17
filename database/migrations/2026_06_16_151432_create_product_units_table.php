@@ -10,14 +10,15 @@ return new class extends Migration
     {
         Schema::create('product_units', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->string('unit_name', 50);
-            $table->integer('conversion_factor')->default(1);
-            $table->decimal('cost_price', 15, 2);
+            $table->unsignedBigInteger('product_id');
+            $table->string('unit_name');
+            $table->integer('conversion_rate')->default(1);
+            $table->decimal('base_price', 15, 2);
             $table->decimal('sale_price', 15, 2);
-            $table->integer('stock_quantity')->default(0);
-            $table->boolean('is_base_unit')->default(false);
+            $table->boolean('is_base')->default(false);
             $table->timestamps();
+
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
         });
     }
 

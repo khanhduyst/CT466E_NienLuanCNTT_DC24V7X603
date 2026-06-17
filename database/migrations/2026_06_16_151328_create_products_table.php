@@ -10,14 +10,13 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('category_id')->constrained('categories');
-            $table->string('barcode', 50)->unique();
+            $table->unsignedBigInteger('category_id');
+            $table->string('barcode')->unique()->nullable();
             $table->string('name');
-            $table->integer('minimum_stock_level')->default(5);
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_deleted')->default(false);
             $table->timestamps();
 
-            $table->index('barcode');
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
         });
     }
 
