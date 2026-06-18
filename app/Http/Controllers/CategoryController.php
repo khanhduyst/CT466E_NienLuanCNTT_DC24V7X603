@@ -33,6 +33,9 @@ class CategoryController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
             'parent_id' => 'nullable|exists:categories,id',
+        ], [
+            'name.unique' => 'Tên danh mục này đã tồn tại trong hệ thống!',
+            'name.required' => 'Vui lòng nhập tên danh mục!',
         ]);
 
         Category::create([
@@ -50,6 +53,9 @@ class CategoryController extends Controller
         $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $id,
             'parent_id' => 'nullable|exists:categories,id|not_in:' . $id,
+        ],[
+            'name.unique' => 'Tên danh mục này đã tồn tại trong hệ thống!',
+            'name.required' => 'Vui lòng nhập tên danh mục!',
         ]);
 
         $category->update([

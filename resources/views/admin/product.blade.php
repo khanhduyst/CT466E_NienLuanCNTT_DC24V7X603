@@ -13,19 +13,7 @@
             </button>
         </div>
     </div>
-    @if ($errors->any())
-    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="border-radius: 12px;">
-        <div class="d-flex align-items-center">
-            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-            <ul class="mb-0 ps-3">
-                @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-    @endif
+
     @if(session('success'))
     <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="border-radius: 12px;">
         <div class="d-flex align-items-center">
@@ -35,6 +23,47 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
     @endif
+
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+        <div class="card-body p-3">
+            <form action="/admin/san-pham" method="GET" class="row g-2">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" name="search" value="{{ request('search') }}" placeholder="Tìm tên sản phẩm, mã vạch...">
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <select class="form-select" id="filter-parent-category" name="parent_category_id">
+                        <option value="">-- Tất cả danh mục cha ({{ $categories->where('parent_id', null)->count() }}) --</option>
+                        @foreach($categories->where('parent_id', null) as $parent)
+                        <option value="{{ $parent->id }}" {{ request('parent_category_id') == $parent->id ? 'selected' : '' }}>
+                            📂 {{ $parent->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-3 position-relative">
+                    <input type="text" class="form-control" id="search-child-input" placeholder="Gõ tìm mục con trong 1000 mục..." autocomplete="off" {{ request('parent_category_id') ? '' : 'disabled' }}>
+                    <input type="hidden" name="category_id" id="filter-child-id" value="{{ request('category_id') }}">
+                    <div class="dropdown-menu w-100 shadow-sm border-0 mt-1 p-0" id="child-suggestions-box" style="max-height: 250px; overflow-y: auto; display: none; z-index: 1050; border-radius: 8px;"></div>
+                </div>
+
+                <div class="col-md-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-primary fw-bold w-100" style="border-radius: 8px;">
+                        <i class="bi bi-filter"></i> Lọc
+                    </button>
+                    @if(request()->has('search') || request()->has('category_id') || request()->has('parent_category_id'))
+                    <a href="/admin/san-pham" class="btn btn-light fw-bold text-secondary border" style="border-radius: 8px;">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
 
     <div class="card border-0 shadow-sm" style="border-radius: 16px;">
         <div class="card-body p-0">
@@ -65,38 +94,53 @@
                             </td>
                             <td>
                                 <div class="fw-bold text-dark">{{ $product->name }}</div>
-                                @if($product->barcode)
-                                <small class="text-muted"><i class="bi bi-qr-code me-1"></i>{{ $product->barcode }}</small>
-                                @endif
                             </td>
                             <td>
-                                <span class="badge bg-primary-subtle text-primary border px-2 py-1">{{ $product->category->name }}</span>
+                                <span class="badge bg-primary-subtle text-primary border px-2 py-1">{{ $product->category->name ?? 'Chưa phân loại' }}</span>
                             </td>
                             <td>
-                                <div class="d-flex flex-column gap-1">
-                                    @foreach($product->units as $unit)
-                                    <span style="font-size: 13px;">
-                                        <strong class="text-dark">{{ $unit->unit_name }}</strong>:
-                                        <span class="text-danger fw-semibold">{{ number_format($unit->sale_price, 0, ',', '.') }}đ</span>
-                                        @if(!$unit->is_base)
-                                        <small class="text-muted">(X{{ $unit->conversion_rate }})</small>
-                                        @endif
-                                    </span>
-                                    @endforeach
-                                </div>
+                                <button type="button"
+                                    class="btn btn-sm btn-light border fw-bold text-secondary text-start d-flex align-items-center justify-content-between p-2 popover-variant-trigger"
+                                    data-bs-container="body"
+                                    data-bs-toggle="popover"
+                                    data-bs-placement="left"
+                                    data-bs-html="true"
+                                    title="<i class='bi bi-layers-half text-primary me-1'></i> Chi tiết biến thể"
+                                    data-bs-content="
+                                            <div class='d-flex flex-column gap-2' style='min-width: 240px; max-height: 280px; overflow-y: auto;'>
+                                                @foreach($product->variants as $variant)
+                                                    <div class='p-2 bg-light rounded border-start border-3 border-success mb-1' style='font-size: 12px;'>
+                                                        <div class='fw-bold text-dark mb-1'>
+                                                            <i class='bi bi-tag-fill text-warning me-1'></i>{{ $variant->variant_name }}
+                                                            @if($variant->barcode)<span class='text-muted fw-normal' style='font-size: 10px;'> ({{ $variant->barcode }})</span>@endif
+                                                        </div>
+                                                        <div class='d-flex flex-column gap-1 ps-2 border-start' style='font-size: 11px;'>
+                                                            @foreach($variant->units as $unit)
+                                                                <div>
+                                                                    <span class='text-secondary'>{{ $unit->unit_name }}:</span>
+                                                                    <span class='text-danger fw-bold'>{{ number_format($unit->sale_price, 0, ',', '.') }}đ</span>
+                                                                    @if(!$unit->is_base)<small class='text-muted'>(x{{ $unit->conversion_rate }})</small>
+                                                                    @else<span class='text-info fw-bold' style='font-size: 10px;'> [Gốc-Kho: {{ $unit->stock_quantity }}]</span>@endif
+                                                                </div>
+                                                               @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        "
+                                    style="border-radius: 8px; min-width: 150px; font-size: 13px;">
+                                    <span><i class="bi bi-box-seam text-primary me-2"></i>{{ $product->variants->count() }} biến thể</span>
+                                    <i class="bi bi-chat-square-text text-muted ms-2 small"></i>
+                                </button>
                             </td>
                             <td class="text-end pe-3">
                                 <button type="button" class="btn btn-sm btn-outline-primary border-0 btn-edit-product"
-                                    data-bs-toggle="modal" data-bs-target="#editProductModal"
                                     data-id="{{ $product->id }}"
                                     data-name="{{ $product->name }}"
-                                    data-barcode="{{ $product->barcode }}"
                                     data-parent-id="{{ $product->category->parent_id ?? $product->category_id }}"
                                     data-child-id="{{ $product->category->parent_id ? $product->category_id : '' }}"
                                     data-image="{{ $product->image ? asset('uploads/products/' . $product->image) : '' }}"
-                                    data-base-unit="{{ $product->units->where('is_base', true)->first()->unit_name ?? '' }}"
-                                    data-base-price="{{ $product->units->where('is_base', true)->first()->sale_price ?? 0 }}"
-                                    data-units='@json($product->units->where("is_base", false)->values())'>
+                                    data-variants='@json($product->variants->load("units"))'>
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
 
@@ -117,6 +161,17 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($products->hasPages())
+            <div class="card-footer bg-white border-top-0 d-flex align-items-center justify-content-between p-3" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                <div class="text-muted small">
+                    Hiển thị từ {{ $products->firstItem() }} đến {{ $products->lastItem() }} trong tổng số {{ $products->total() }} sản phẩm
+                </div>
+                <div class="laravel-pagination-wrapper">
+                    {{ $products->links('pagination::bootstrap-5') }}
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 </div>
@@ -126,79 +181,67 @@
         <div class="modal-content" style="border-radius: 20px; border: none;">
             <div class="modal-header border-bottom-0 pt-4 px-4">
                 <h5 class="modal-title fw-bold text-dark" id="addProductModalLabel">
-                    <i class="bi bi-plus-circle-fill text-primary me-2"></i>Thêm sản phẩm mới vào hệ thống
+                    <i class="bi bi-box-seam-fill text-primary me-2"></i>Thêm sản phẩm mới vào hệ thống
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <form action="/admin/san-pham" method="POST" enctype="multipart/form-data">
+            <form action="/admin/san-pham" method="POST" enctype="multipart/form-data" id="form-add-product" data-errors='@json($errors->toArray())' data-old='@json(old("variants"))' data-old-parent="{{ old('parent_category_id') }}" data-old-child="{{ old('category_id') }}" novalidate>
                 @csrf
                 <div class="modal-body px-4 pb-4 pt-2">
                     <div class="row g-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4 border-end pe-md-4">
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-info-circle-fill me-2"></i>Thông tin chung</h6>
+
                             <div class="mb-3">
-                                <label class="form-label small fw-semibold">Tên sản phẩm</label>
-                                <input type="text" class="form-control" name="name" placeholder="Ví dụ: Nước tương Nhất Ca Tam Thái Tử" required>
+                                <label class="form-label small fw-semibold">Tên sản phẩm chính</label>
+                                <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" placeholder="Ví dụ: Nước mắm Knorr 15 độ đạm" required>
+                                @error('name')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
                             </div>
 
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
-                                    <label class="form-label small fw-semibold">Danh mục chính (Cha)</label>
-                                    <select class="form-select" id="parent-category-select">
+                                    <label class="form-label small fw-semibold">Danh mục chính</label>
+                                    <select class="form-select" id="parent-category-select" name="parent_category_id">
                                         <option value="">-- Chọn danh mục cha --</option>
                                         @foreach($categories->where('parent_id', null) as $parent)
-                                        <option value="{{ $parent->id }}">{{ $parent->name }}</option>
+                                        <option value="{{ $parent->id }}" {{ old('parent_category_id') == $parent->id ? 'selected' : '' }}>{{ $parent->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label small fw-semibold">Danh mục chi tiết (Con)</label>
-                                    <select class="form-select" name="category_id" id="child-category-select" required disabled>
+                                    <label class="form-label small fw-semibold">Danh mục chi tiết</label>
+                                    <select class="form-select @error('category_id') is-invalid @enderror" name="category_id" id="child-category-select" required disabled>
                                         <option value="">-- Chọn danh mục con --</option>
                                     </select>
+                                    @error('category_id')
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label small fw-semibold">Mã vạch (Barcode)</label>
-                                <input type="text" class="form-control" name="barcode" placeholder="Quét hoặc nhập mã vạch (nếu có)">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label small fw-semibold">Hình ảnh sản phẩm</label>
+                                <label class="form-label small fw-semibold">Hình ảnh đại diện</label>
                                 <input type="file" class="form-control" name="image" id="product-image-input" accept="image/*">
-                                <div class="mt-2 text-center d-none position-relative w-100" id="image-preview-container">
-                                    <div class="position-relative d-inline-block">
-                                        <img id="image-preview" src="#" alt="Xem trước ảnh" class="img-thumbnail shadow-sm" style="max-height: 120px; border-radius: 8px;">
-                                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 translate-middle badge rounded-circle" id="btn-remove-preview" style="padding: 4px 6px; font-size: 10px; z-index: 10;">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
+                                <div class="mt-2 text-center position-relative d-none" id="image-preview-container">
+                                    <img id="image-preview" src="#" alt="Xem trước ảnh" class="img-thumbnail shadow-sm" style="max-height: 120px; border-radius: 8px;">
+                                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 translate-middle badge rounded-circle" id="btn-remove-preview" style="padding: 4px 6px; font-size: 10px;">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-6 border-start ps-md-4">
-                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-calculator-fill me-2"></i>Đơn vị tính cơ bản</h6>
-                            <div class="row g-2 mb-4">
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold">Đơn vị gốc</label>
-                                    <input type="text" class="form-control" name="base_unit" placeholder="Chai, Lon, Cái..." required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold">Giá bán lẻ (đ)</label>
-                                    <input type="number" class="form-control" name="base_sale_price" placeholder="0" min="0" required>
-                                </div>
-                            </div>
-
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="fw-bold text-secondary mb-0" style="font-size: 14px;">Đơn vị quy đổi (nếu có)</h6>
-                                <button type="button" class="btn btn-sm btn-outline-success border-0 px-2 py-1" id="btn-add-unit">
-                                    <i class="bi bi-plus-lg me-1"></i>Thêm quy đổi
+                        <div class="col-md-8 ps-md-4">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="fw-bold text-success mb-0"><i class="bi bi-layers-half me-2"></i>Danh sách biến thể & Đơn vị tính</h6>
+                                <button type="button" class="btn btn-sm btn-outline-success fw-bold" id="btn-add-variant">
+                                    <i class="bi bi-plus-lg me-1"></i>Thêm biến thể thuộc tính
                                 </button>
                             </div>
-
-                            <div id="conversion-units-container" style="max-height: 220px; overflow-y: auto; padding-right: 5px;"></div>
+                            <div id="variants-container" style="max-height: 450px; overflow-y: auto; padding-right: 5px;"></div>
                         </div>
                     </div>
                 </div>
@@ -219,18 +262,21 @@
         <div class="modal-content" style="border-radius: 20px; border: none;">
             <div class="modal-header border-bottom-0 pt-4 px-4">
                 <h5 class="modal-title fw-bold text-dark" id="editProductModalLabel">
-                    <i class="bi bi-pencil-square text-warning me-2"></i>Cập nhật thông tin sản phẩm
+                    <i class="bi bi-pencil-square text-warning me-2"></i>Cập nhật thông tin sản phẩm đa biến thể
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <form id="form-edit-product" method="POST" enctype="multipart/form-data">
+            <form id="form-edit-product" method="POST" enctype="multipart/form-data" novalidate>
                 @csrf
-                @method('PUT') <div class="modal-body px-4 pb-4 pt-2">
+                @method('PUT')
+                <div class="modal-body px-4 pb-4 pt-2">
                     <div class="row g-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4 border-end pe-md-4">
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-info-circle-fill me-2"></i>Thông tin sản phẩm chính</h6>
+
                             <div class="mb-3">
-                                <label class="form-label small fw-semibold">Tên sản phẩm</label>
+                                <label class="form-label small fw-semibold">Tên sản phẩm chính</label>
                                 <input type="text" class="form-control" name="name" id="edit-name" required>
                             </div>
 
@@ -253,11 +299,6 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label small fw-semibold">Mã vạch (Barcode)</label>
-                                <input type="text" class="form-control" name="barcode" id="edit-barcode">
-                            </div>
-
-                            <div class="mb-3">
                                 <label class="form-label small fw-semibold">Hình ảnh sản phẩm</label>
                                 <input type="file" class="form-control" name="image" id="edit-product-image-input" accept="image/*">
                                 <div class="mt-2 text-center position-relative w-100" id="edit-image-preview-container">
@@ -272,27 +313,9 @@
                             </div>
                         </div>
 
-                        <div class="col-md-6 border-start ps-md-4">
-                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-calculator-fill me-2"></i>Đơn vị tính cơ bản</h6>
-                            <div class="row g-2 mb-4">
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold">Đơn vị gốc</label>
-                                    <input type="text" class="form-control" name="base_unit" id="edit-base-unit" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-semibold">Giá bán lẻ (đ)</label>
-                                    <input type="number" class="form-control" name="base_sale_price" id="edit-base-sale-price" min="0" required>
-                                </div>
-                            </div>
-
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <h6 class="fw-bold text-secondary mb-0" style="font-size: 14px;">Đơn vị quy đổi (nếu có)</h6>
-                                <button type="button" class="btn btn-sm btn-outline-success border-0 px-2 py-1" id="btn-edit-add-unit">
-                                    <i class="bi bi-plus-lg me-1"></i>Thêm quy đổi
-                                </button>
-                            </div>
-
-                            <div id="edit-conversion-units-container" style="max-height: 220px; overflow-y: auto; padding-right: 5px;"></div>
+                        <div class="col-md-8 ps-md-4">
+                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-layers-half me-2"></i>Danh sách biến thể đang có</h6>
+                            <div id="edit-variants-container" style="max-height: 450px; overflow-y: auto; padding-right: 5px;"></div>
                         </div>
                     </div>
                 </div>
@@ -310,98 +333,524 @@
 
 <script>
     const allChildCategories = JSON.parse('{!! json_encode($categories->where("parent_id", "!=", null)->values()) !!}');
+    let variantIndex = 0;
 
-    document.addEventListener('DOMContentLoaded', function() {
+    // ĐỊNH NGHĨA HÀM SINH BIẾN THỂ ĐỘNG (DÙNG CHO CẢ TẢI LẦN ĐẦU VÀ KHÔI PHỤC DỮ LIỆU CŨ)
+    function createVariantRow(oldData = null) {
+        const variantsContainer = document.getElementById('variants-container');
+        if (!variantsContainer) return;
 
-        const parentSelect = document.getElementById('parent-category-select');
-        const childSelect = document.getElementById('child-category-select');
-
-        parentSelect.addEventListener('change', function() {
-            const parentId = this.value;
-            childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
-
-            if (parentId === "") {
-                childSelect.disabled = true;
-                childSelect.required = false;
-            } else {
-                const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
-
-                if (filtered.length > 0) {
-                    filtered.forEach(child => {
-                        childSelect.innerHTML += `<option value="${child.id}">${child.name}</option>`;
-                    });
-                    childSelect.disabled = false;
-                    childSelect.required = true;
-                } else {
-                    childSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
-                    childSelect.disabled = true;
-                    childSelect.required = false;
-                }
-            }
-        });
-
-
-        const imageInput = document.getElementById('product-image-input');
-        const previewContainer = document.getElementById('image-preview-container');
-        const previewImg = document.getElementById('image-preview');
-        const btnRemovePreview = document.getElementById('btn-remove-preview');
-
-        imageInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.setAttribute('src', e.target.result);
-                    previewContainer.classList.remove('d-none');
-                    previewContainer.classList.add('d-inline-block');
-                }
-                reader.readAsDataURL(file);
-            } else {
-                previewContainer.classList.add('d-none');
-            }
-        });
-
-        btnRemovePreview.addEventListener('click', function(e) {
-            e.preventDefault();
-            imageInput.value = "";
-            previewImg.setAttribute('src', '#');
-            previewContainer.classList.add('d-none');
-            previewContainer.classList.remove('d-inline-block');
-        });
-
-
+        const vIndex = variantIndex;
         let unitIndex = 0;
-        const container = document.getElementById('conversion-units-container');
-        const btnAddUnit = document.getElementById('btn-add-unit');
 
-        btnAddUnit.addEventListener('click', function() {
-            const unitHtml = `
-                <div class="row g-2 mb-2 alignment-unit-row">
+        // Đọc mảng lỗi an toàn qua thuộc tính HTML (Giải quyết triệt để lỗi Decorator)
+        const formFormEl = document.getElementById('form-add-product');
+        const allErrors = formFormEl && formFormEl.getAttribute('data-errors') ?
+            JSON.parse(formFormEl.getAttribute('data-errors')) : {};
+
+        const getErrorMsg = (fieldPath) => {
+            return allErrors[fieldPath] ? allErrors[fieldPath][0] : null;
+        };
+
+        const errVariantName = getErrorMsg(`variants.${vIndex}.variant_name`);
+        const errBaseUnit = getErrorMsg(`variants.${vIndex}.base_unit`);
+        const errImportPrice = getErrorMsg(`variants.${vIndex}.import_price`);
+        const errSalePrice = getErrorMsg(`variants.${vIndex}.sale_price`);
+
+        // Khôi phục giá trị cũ nếu có
+        const valVariantName = oldData ? (oldData.variant_name || '') : '';
+        const valBarcode = oldData ? (oldData.barcode || '') : '';
+        const valStock = oldData ? (oldData.stock_quantity || '0') : '0';
+        const valBaseUnit = oldData ? (oldData.base_unit || '') : '';
+        const valImportPrice = oldData ? (oldData.import_price || '') : '';
+        const valSalePrice = oldData ? (oldData.sale_price || '') : '';
+
+        const variantHtml = `
+            <div class="card card-body border border-light shadow-sm mb-4 variant-block-item" data-index="${vIndex}" style="border-radius: 12px; background-color: #f8f9fa;">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <span class="fw-bold text-secondary" style="font-size: 14px;">
+                        <i class="bi bi-tag-fill me-1 text-warning"></i>Biến thể #${vIndex + 1}
+                    </span>
+                    ${vIndex > 0 ? `<button type="button" class="btn btn-sm text-danger p-0 btn-remove-variant"><i class="bi bi-trash3-fill"></i> Xóa biến thể</button>` : ''}
+                </div>
+                
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold">Tên thuộc tính / Dung tích</label>
+                        <input type="text" class="form-control form-control-sm ${errVariantName ? 'is-invalid' : ''}" name="variants[${vIndex}][variant_name]" value="${valVariantName}" placeholder="Ví dụ: Chai 242ml, Chai 750ml..." required>
+                        ${errVariantName ? `<div class="invalid-feedback d-block">${errVariantName}</div>` : ''}
+                    </div>
                     <div class="col-4">
-                        <input type="text" class="form-control form-control-sm" name="units[${unitIndex}][unit_name]" placeholder="Thùng, lốc..." required>
+                        <label class="form-label small fw-semibold">Mã vạch (Barcode)</label>
+                        <input type="text" class="form-control form-control-sm" name="variants[${vIndex}][barcode]" value="${valBarcode}" placeholder="Quét mã vạch...">
                     </div>
                     <div class="col-3">
-                        <input type="number" class="form-control form-control-sm" name="units[${unitIndex}][conversion_rate]" placeholder="Tỷ lệ" min="2" required>
+                        <label class="form-label small fw-semibold">Tồn kho ban đầu</label>
+                        <input type="number" class="form-control form-control-sm" name="variants[${vIndex}][stock_quantity]" value="${valStock}" placeholder="Số lượng" min="0" required>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3 bg-white p-2 border-start border-primary border-3" style="border-radius: 6px;">
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-primary">Đơn vị gốc</label>
+                        <input type="text" class="form-control form-control-sm ${errBaseUnit ? 'is-invalid' : ''}" name="variants[${vIndex}][base_unit]" value="${valBaseUnit}" placeholder="Chai, gói..." required>
+                        ${errBaseUnit ? `<div class="invalid-feedback d-block">${errBaseUnit}</div>` : ''}
                     </div>
                     <div class="col-4">
-                        <input type="number" class="form-control form-control-sm" name="units[${unitIndex}][sale_price]" placeholder="Giá lẻ" min="0" required>
+                        <label class="form-label small fw-semibold text-primary">Giá nhập gốc (đ)</label>
+                        <input type="number" class="form-control form-control-sm ${errImportPrice ? 'is-invalid' : ''}" name="variants[${vIndex}][import_price]" value="${valImportPrice}" placeholder="Giá vốn" min="0" required>
+                        ${errImportPrice ? `<div class="invalid-feedback d-block">${errImportPrice}</div>` : ''}
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-primary">Giá bán lẻ gốc (đ)</label>
+                        <input type="number" class="form-control form-control-sm ${errSalePrice ? 'is-invalid' : ''}" name="variants[${vIndex}][sale_price]" value="${valSalePrice}" placeholder="Giá bán lẻ" min="0" required>
+                        ${errSalePrice ? `<div class="invalid-feedback d-block">${errSalePrice}</div>` : ''}
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-bold text-muted"><i class="bi bi-arrow-left-right me-1"></i>Đơn vị quy đổi phụ (nếu có)</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary border-0 px-2 py-0 btn-add-conversion" style="font-size: 12px;">
+                        <i class="bi bi-plus-lg"></i> Thêm quy đổi
+                    </button>
+                </div>
+
+                <div class="conversion-units-list"></div>
+            </div>
+        `;
+
+        variantsContainer.insertAdjacentHTML('beforeend', variantHtml);
+
+        const currentBlock = variantsContainer.querySelector(`.variant-block-item[data-index="${vIndex}"]`);
+        const conversionList = currentBlock.querySelector('.conversion-units-list');
+        const btnAddConversion = currentBlock.querySelector('.btn-add-conversion');
+
+        function addConversionRow(oldConv = null) {
+            const cIndex = unitIndex;
+
+            const errConvName = getErrorMsg(`variants.${vIndex}.conversions.${cIndex}.unit_name`);
+            const errConvRate = getErrorMsg(`variants.${vIndex}.conversions.${cIndex}.conversion_rate`);
+            const errConvPrice = getErrorMsg(`variants.${vIndex}.conversions.${cIndex}.sale_price`);
+
+            const valConvName = oldConv ? (oldConv.unit_name || '') : '';
+            const valConvRate = oldConv ? (oldConv.conversion_rate || '') : '';
+            const valConvPrice = oldConv ? (oldConv.sale_price || '') : '';
+
+            const cHtml = `
+                <div class="row g-2 mb-2 alignment-unit-row">
+                    <div class="col-4">
+                        <input type="text" class="form-control form-control-sm ${errConvName ? 'is-invalid' : ''}" name="variants[${vIndex}][conversions][${cIndex}][unit_name]" value="${valConvName}" placeholder="Thùng, lốc..." required>
+                        ${errConvName ? `<div class="invalid-feedback d-block" style="font-size:10px;">${errConvName}</div>` : ''}
+                    </div>
+                    <div class="col-3">
+                        <input type="number" class="form-control form-control-sm ${errConvRate ? 'is-invalid' : ''}" name="variants[${vIndex}][conversions][${cIndex}][conversion_rate]" value="${valConvRate}" placeholder="Tỷ lệ" min="2" required>
+                        ${errConvRate ? `<div class="invalid-feedback d-block" style="font-size:10px;">${errConvRate}</div>` : ''}
+                    </div>
+                    <div class="col-4">
+                        <input type="number" class="form-control form-control-sm ${errConvPrice ? 'is-invalid' : ''}" name="variants[${vIndex}][conversions][${cIndex}][sale_price]" value="${valConvPrice}" placeholder="Giá bán" min="0" required>
+                        ${errConvPrice ? `<div class="invalid-feedback d-block" style="font-size:10px;">${errConvPrice}</div>` : ''}
                     </div>
                     <div class="col-1 d-flex align-items-center justify-content-center">
                         <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
                     </div>
                 </div>
             `;
-            container.insertAdjacentHTML('beforeend', unitHtml);
+            conversionList.insertAdjacentHTML('beforeend', cHtml);
             unitIndex++;
+        }
+
+        // Tự động khôi phục danh mục quy đổi phụ của biến thể nếu dính lỗi reload
+        if (oldData && oldData.conversions) {
+            Object.values(oldData.conversions).forEach(conv => {
+                addConversionRow(conv);
+            });
+        }
+
+        btnAddConversion.addEventListener('click', function() {
+            addConversionRow();
         });
 
-        container.addEventListener('click', function(e) {
-            if (e.target.closest('.btn-remove-unit-row')) {
-                e.target.closest('.alignment-unit-row').remove();
+        variantIndex++;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // KHAI BÁO BIẾN DOM CHÍNH
+        const parentSelect = document.getElementById('parent-category-select');
+        const childSelect = document.getElementById('child-category-select');
+        const btnAddVariant = document.getElementById('btn-add-variant');
+        const variantsContainer = document.getElementById('variants-container');
+
+        // BẬT MỞ BONG BÓNG POPOVER CHO DANH SÁCH BẢNG
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl)
+        });
+
+        // XỬ LÝ KHÔI PHỤC HOẶC KHỞI TẠO BIẾN THỂ TRONG HỆ THỐNG
+        const formFormEl = document.getElementById('form-add-product');
+        const allErrors = formFormEl && formFormEl.getAttribute('data-errors') ? JSON.parse(formFormEl.getAttribute('data-errors')) : {};
+        const oldVariants = formFormEl && formFormEl.getAttribute('data-old') ? JSON.parse(formFormEl.getAttribute('data-old')) : null;
+
+        if (variantsContainer) {
+            variantsContainer.innerHTML = '';
+            variantIndex = 0;
+
+            if (oldVariants && Object.keys(oldVariants).length > 0) {
+                // Nếu submit form dính lỗi validation -> Giữ nguyên thông tin cũ và dựng lại số lượng form tương ứng
+                Object.values(oldVariants).forEach(variant => {
+                    createVariantRow(variant);
+                });
+            } else {
+                // Tải trang lần đầu tiên -> Sinh ra 1 khối biến thể trống mặc định
+                createVariantRow();
+            }
+        }
+
+        // SỰ KIỆN CLICK NÚT THÊM BIẾN THỂ PHỤ BẰNG TAY (ĐỒNG BỘ ĐÚNG INDEX)
+        if (btnAddVariant) {
+            btnAddVariant.addEventListener('click', function() {
+                createVariantRow();
+            });
+        }
+
+        // SỰ KIỆN CLICK XÓA BIẾN THỂ TRONG VÙNG CHỨA ĐỘNG
+        if (variantsContainer) {
+            variantsContainer.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-variant')) {
+                    e.target.closest('.variant-block-item').remove();
+                }
+                if (e.target.closest('.btn-remove-unit-row')) {
+                    e.target.closest('.alignment-unit-row').remove();
+                }
+            });
+        }
+
+        // XỬ LÝ KHÔI PHỤC DANH MỤC CŨ KHI FORM BỊ LOAD LẠI DO LỖI VALIDATION
+        const oldParentId = formFormEl && formFormEl.getAttribute('data-old-parent');
+        const oldChildId = formFormEl && formFormEl.getAttribute('data-old-child');
+
+        if (oldParentId) {
+            // Thiết lập giá trị cũ cho danh mục cha
+            parentSelect.value = oldParentId;
+            childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+
+            const filtered = allChildCategories.filter(cate => cate.parent_id == oldParentId);
+            if (filtered.length > 0) {
+                filtered.forEach(child => {
+                    const isSelected = child.id == oldChildId ? 'selected' : '';
+                    childSelect.innerHTML += `<option value="${child.id}" ${isSelected}>${child.name}</option>`;
+                });
+                childSelect.disabled = false;
+                childSelect.required = true;
+            }
+        }
+
+        // TỰ ĐỘNG BẬT BẬT LẠI MODAL NẾU HỆ THỐNG TRẢ VỀ BẤT KỲ LỖI VALIDATION NÀO
+        if (Object.keys(allErrors).length > 0) {
+            const addModalEl = document.getElementById('addProductModal');
+            if (addModalEl) {
+                const addModal = new bootstrap.Modal(addModalEl);
+                addModal.show();
+            }
+        }
+
+        // XỬ LÝ BỘ LỌC ĐA DANH MỤC 1000 MỤC THÔNG MINH CỦA TRANG CHÍNH
+        const filterParent = document.getElementById('filter-parent-category');
+        const searchChildInput = document.getElementById('search-child-input');
+        const filterChildId = document.getElementById('filter-child-id');
+        const suggestionsBox = document.getElementById('child-suggestions-box');
+
+        let currentParentId = filterParent.value;
+        let selectedChildId = filterChildId.value;
+
+        if (selectedChildId && currentParentId) {
+            const found = allChildCategories.find(c => c.id == selectedChildId);
+            if (found) searchChildInput.value = found.name;
+        }
+
+        filterParent.addEventListener('change', function() {
+            currentParentId = this.value;
+            searchChildInput.value = '';
+            filterChildId.value = '';
+            suggestionsBox.style.display = 'none';
+
+            if (currentParentId === '') {
+                searchChildInput.disabled = true;
+                searchChildInput.placeholder = "Chọn cha trước...";
+            } else {
+                searchChildInput.disabled = false;
+                searchChildInput.placeholder = "Gõ từ khóa để tìm mục con...";
+                searchChildInput.focus();
             }
         });
 
+        searchChildInput.addEventListener('input', function() {
+            const keyword = this.value.toLowerCase().trim();
+            suggestionsBox.innerHTML = '';
 
+            const matchedChildren = allChildCategories.filter(cate =>
+                cate.parent_id == currentParentId &&
+                cate.name.toLowerCase().includes(keyword)
+            );
+
+            if (matchedChildren.length > 0) {
+                matchedChildren.forEach(child => {
+                    const itemHtml = `<button type="button" class="dropdown-item py-2 text-start small-suggestion-item" data-id="${child.id}" data-name="${child.name}" style="font-size: 13px;"><i class="bi bi-file-earmark-text text-muted me-2"></i>${child.name}</button>`;
+                    suggestionsBox.insertAdjacentHTML('beforeend', itemHtml);
+                });
+                suggestionsBox.style.display = 'block';
+            } else {
+                suggestionsBox.innerHTML = '<div class="text-muted p-2 small text-center">❌ Không thấy mục con</div>';
+                suggestionsBox.style.display = 'block';
+            }
+        });
+
+        suggestionsBox.addEventListener('click', function(e) {
+            const clickedBtn = e.target.closest('.small-suggestion-item');
+            if (clickedBtn) {
+                searchChildInput.value = clickedBtn.getAttribute('data-name');
+                filterChildId.value = clickedBtn.getAttribute('data-id');
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchChildInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        // XỬ LÝ CHỌN DANH MỤC TRONG MODAL THÊM
+        if (parentSelect && childSelect) {
+            parentSelect.addEventListener('change', function() {
+                const parentId = this.value;
+                childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+
+                if (parentId === "") {
+                    childSelect.disabled = true;
+                    childSelect.required = false;
+                } else {
+                    const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
+
+                    if (filtered.length > 0) {
+                        filtered.forEach(child => {
+                            childSelect.innerHTML += `<option value="${child.id}">${child.name}</option>`;
+                        });
+                        childSelect.disabled = false;
+                        childSelect.required = true;
+                    } else {
+                        childSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
+                        childSelect.disabled = true;
+                        childSelect.required = false;
+                    }
+                }
+            });
+        }
+
+        // PREVIEW ẢNH MODAL THÊM
+        const imageInput = document.getElementById('product-image-input');
+        const previewContainer = document.getElementById('image-preview-container');
+        const previewImg = document.getElementById('image-preview');
+        const btnRemovePreview = document.getElementById('btn-remove-preview');
+
+        if (imageInput) {
+            imageInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.setAttribute('src', e.target.result);
+                        previewContainer.classList.remove('d-none');
+                        previewContainer.classList.add('d-inline-block');
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    previewContainer.classList.add('d-none');
+                }
+            });
+        }
+
+        if (btnRemovePreview) {
+            btnRemovePreview.addEventListener('click', function(e) {
+                e.preventDefault();
+                imageInput.value = "";
+                previewImg.setAttribute('src', '#');
+                previewContainer.classList.add('d-none');
+                previewContainer.classList.remove('d-inline-block');
+            });
+        }
+
+        // XỬ LÝ ĐỔ DỮ LIỆU ĐA BIẾN THỂ VÀO MODAL SỬA
+        const editParentSelect = document.getElementById('edit-parent-category-select');
+        const editChildSelect = document.getElementById('edit-child-category-select');
+
+        function filterEditChildCategories(parentId, selectedChildId = '') {
+            editChildSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+            if (parentId) {
+                const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
+                if (filtered.length > 0) {
+                    filtered.forEach(child => {
+                        const selected = child.id == selectedChildId ? 'selected' : '';
+                        editChildSelect.innerHTML += `<option value="${child.id}" ${selected}>${child.name}</option>`;
+                    });
+                    editChildSelect.disabled = false;
+                } else {
+                    editChildSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
+                    editChildSelect.disabled = true;
+                }
+            } else {
+                editChildSelect.disabled = true;
+            }
+        }
+
+        if (editParentSelect) {
+            editParentSelect.addEventListener('change', function() {
+                filterEditChildCategories(this.value);
+            });
+        }
+
+        document.querySelectorAll('.btn-edit-product').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                const parentId = this.getAttribute('data-parent-id');
+                const childId = this.getAttribute('data-child-id');
+                const imageSrc = this.getAttribute('data-image');
+                const productVariants = JSON.parse(this.getAttribute('data-variants') || '[]');
+
+                document.getElementById('form-edit-product').setAttribute('action', '/admin/san-pham/' + id);
+                document.getElementById('edit-name').value = name;
+                document.getElementById('remove-current-image').value = "0";
+
+                editParentSelect.value = parentId;
+                filterEditChildCategories(parentId, childId);
+
+                const editPreviewContainer = document.getElementById('edit-image-preview-container');
+                const editPreviewImg = document.getElementById('edit-image-preview');
+                if (imageSrc) {
+                    editPreviewImg.setAttribute('src', imageSrc);
+                    editPreviewContainer.classList.remove('d-none');
+                } else {
+                    editPreviewImg.setAttribute('src', '#');
+                    editPreviewContainer.classList.add('d-none');
+                }
+
+                const editVariantsContainer = document.getElementById('edit-variants-container');
+                if (!editVariantsContainer) return;
+
+                editVariantsContainer.innerHTML = '';
+                let editVIndex = 0;
+
+                productVariants.forEach(variant => {
+                    const baseUnitObj = variant.units.find(u => u.is_base == 1) || {};
+                    const extraUnits = variant.units.filter(u => u.is_base == 0) || [];
+                    let editUIndex = 0;
+
+                    let variantHtml = `
+                    <div class="card card-body border border-light shadow-sm mb-4 edit-variant-block-item" style="border-radius: 12px; background-color: #f8f9fa;">
+                        <div class="fw-bold text-secondary mb-3 border-bottom pb-2" style="font-size: 14px;">
+                            <i class="bi bi-tag-fill me-1 text-warning"></i>Biến thể chỉnh sửa #${editVIndex + 1}
+                        </div>
+                        <input type="hidden" name="variants[${editVIndex}][id]" value="${variant.id}">
+                        
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label small fw-semibold">Tên thuộc tính / Dung tích</label>
+                                <input type="text" class="form-control form-control-sm" name="variants[${editVIndex}][variant_name]" value="${variant.variant_name}" required>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold">Mã vạch (Barcode)</label>
+                                <input type="text" class="form-control form-control-sm" name="variants[${editVIndex}][barcode]" value="${variant.barcode || ''}">
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label small fw-semibold">Tồn kho hiện tại</label>
+                                <input type="number" class="form-control form-control-sm" name="variants[${editVIndex}][stock_quantity]" value="${baseUnitObj.stock_quantity || 0}" min="0" required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3 bg-white p-2 border-start border-primary border-3" style="border-radius: 6px;">
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-primary">Đơn vị gốc</label>
+                                <input type="text" class="form-control form-control-sm" name="variants[${editVIndex}][base_unit]" value="${baseUnitObj.unit_name || ''}" required>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-primary">Giá nhập gốc (đ)</label>
+                                <input type="number" class="form-control form-control-sm" name="variants[${editVIndex}][import_price]" value="${parseInt(baseUnitObj.import_price) || 0}" min="0" required>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-primary">Giá bán lẻ gốc (đ)</label>
+                                <input type="number" class="form-control form-control-sm" name="variants[${editVIndex}][sale_price]" value="${parseInt(baseUnitObj.sale_price) || 0}" min="0" required>
+                            </div>
+                        </div>
+
+                        <div class="edit-conversion-units-list"></div>
+                    </div>
+                    `;
+
+                    editVariantsContainer.insertAdjacentHTML('beforeend', variantHtml);
+                    const currentBlock = editVariantsContainer.querySelectorAll('.edit-variant-block-item')[editVIndex];
+                    const conversionList = currentBlock.querySelector('.edit-conversion-units-list');
+
+                    extraUnits.forEach(unit => {
+                        const cHtml = `
+                        <div class="row g-2 mb-2 alignment-unit-row">
+                            <div class="col-4">
+                                <input type="text" class="form-control form-control-sm" name="variants[${editVIndex}][conversions][${editUIndex}][unit_name]" value="${unit.unit_name}" required>
+                            </div>
+                            <div class="col-3">
+                                <input type="number" class="form-control form-control-sm" name="variants[${editVIndex}][conversions][${editUIndex}][conversion_rate]" value="${unit.conversion_rate}" min="2" required>
+                            </div>
+                            <div class="col-4">
+                                <input type="number" class="form-control form-control-sm" name="variants[${editVIndex}][conversions][${editUIndex}][sale_price]" value="${parseInt(unit.sale_price)}" min="0" required>
+                            </div>
+                            <div class="col-1 d-flex align-items-center justify-content-center">
+                                <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
+                            </div>
+                        </div>
+                        `;
+                        conversionList.insertAdjacentHTML('beforeend', cHtml);
+                        editUIndex++;
+                    });
+
+                    editVIndex++;
+                });
+
+                const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+                editModal.show();
+            });
+        });
+
+        // PREVIEW ẢNH MODAL SỬA
+        const editImageInput = document.getElementById('edit-product-image-input');
+        if (editImageInput) {
+            editImageInput.addEventListener('change', function() {
+                const file = this.files[0];
+                const editPreviewContainer = document.getElementById('edit-image-preview-container');
+                const editPreviewImg = document.getElementById('edit-image-preview');
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        editPreviewImg.setAttribute('src', e.target.result);
+                        editPreviewContainer.classList.remove('d-none');
+                        document.getElementById('remove-current-image').value = "0";
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        const btnEditRemovePreview = document.getElementById('btn-edit-remove-preview');
+        if (btnEditRemovePreview) {
+            btnEditRemovePreview.addEventListener('click', function(e) {
+                e.preventDefault();
+                editImageInput.value = "";
+                document.getElementById('edit-image-preview').setAttribute('src', '#');
+                document.getElementById('edit-image-preview-container').classList.add('d-none');
+                document.getElementById('remove-current-image').value = "1";
+            });
+        }
+
+        // SỰ KIỆN XÓA SẢN PHẨM SOFT DELETE
         document.querySelectorAll('.btn-delete-product').forEach(function(button) {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -423,152 +872,6 @@
                 });
             });
         });
-    });
-
-
-    // Edit Modal
-
-    const editParentSelect = document.getElementById('edit-parent-category-select');
-    const editChildSelect = document.getElementById('edit-child-category-select');
-    const editContainer = document.getElementById('edit-conversion-units-container');
-    let editUnitIndex = 0;
-
-
-    function filterEditChildCategories(parentId, selectedChildId = '') {
-        editChildSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
-        if (parentId) {
-            const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
-            if (filtered.length > 0) {
-                filtered.forEach(child => {
-                    const selected = child.id == selectedChildId ? 'selected' : '';
-                    editChildSelect.innerHTML += `<option value="${child.id}" ${selected}>${child.name}</option>`;
-                });
-                editChildSelect.disabled = false;
-            } else {
-                editChildSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
-                editChildSelect.disabled = true;
-            }
-        } else {
-            editChildSelect.disabled = true;
-        }
-    }
-
-    editParentSelect.addEventListener('change', function() {
-        filterEditChildCategories(this.value);
-    });
-
-
-    document.querySelectorAll('.btn-edit-product').forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            const name = this.getAttribute('data-name');
-            const barcode = this.getAttribute('data-barcode');
-            const parentId = this.getAttribute('data-parent-id');
-            const childId = this.getAttribute('data-child-id');
-            const imageSrc = this.getAttribute('data-image');
-            const baseUnit = this.getAttribute('data-base-unit');
-            const basePrice = this.getAttribute('data-base-price');
-            const extraUnits = JSON.parse(this.getAttribute('data-units') || '[]');
-
-
-            document.getElementById('form-edit-product').setAttribute('action', '/admin/san-pham/' + id);
-
-
-            document.getElementById('edit-name').value = name;
-            document.getElementById('edit-barcode').value = barcode;
-            document.getElementById('edit-base-unit').value = baseUnit;
-            document.getElementById('edit-base-sale-price').value = basePrice;
-            document.getElementById('remove-current-image').value = "0";
-
-
-            editParentSelect.value = parentId;
-            filterEditChildCategories(parentId, childId);
-
-
-            const editPreviewContainer = document.getElementById('edit-image-preview-container');
-            const editPreviewImg = document.getElementById('edit-image-preview');
-            if (imageSrc) {
-                editPreviewImg.setAttribute('src', imageSrc);
-                editPreviewContainer.classList.remove('d-none');
-            } else {
-                editPreviewImg.setAttribute('src', '#');
-                editPreviewContainer.classList.add('d-none');
-            }
-
-
-            editContainer.innerHTML = '';
-            editUnitIndex = 0;
-
-
-            extraUnits.forEach(unit => {
-                const unitHtml = `
-                        <div class="row g-2 mb-2 alignment-unit-row">
-                            <div class="col-4">
-                                <input type="text" class="form-control form-control-sm" name="units[${editUnitIndex}][unit_name]" value="${unit.unit_name}" required>
-                            </div>
-                            <div class="col-3">
-                                <input type="number" class="form-control form-control-sm" name="units[${editUnitIndex}][conversion_rate]" value="${unit.conversion_rate}" min="2" required>
-                            </div>
-                            <div class="col-4">
-                                <input type="number" class="form-control form-control-sm" name="units[${editUnitIndex}][sale_price]" value="${unit.sale_price}" min="0" required>
-                            </div>
-                            <div class="col-1 d-flex align-items-center justify-content-center">
-                                <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
-                            </div>
-                        </div>
-                    `;
-                editContainer.insertAdjacentHTML('beforeend', unitHtml);
-                editUnitIndex++;
-            });
-        });
-    });
-
-
-    document.getElementById('btn-edit-add-unit').addEventListener('click', function() {
-        const unitHtml = `
-                <div class="row g-2 mb-2 alignment-unit-row">
-                    <div class="col-4">
-                        <input type="text" class="form-control form-control-sm" name="units[${editUnitIndex}][unit_name]" placeholder="Thùng, lốc..." required>
-                    </div>
-                    <div class="col-3">
-                        <input type="number" class="form-control form-control-sm" name="units[${editUnitIndex}][conversion_rate]" placeholder="Tỷ lệ" min="2" required>
-                    </div>
-                    <div class="col-4">
-                        <input type="number" class="form-control form-control-sm" name="units[${editUnitIndex}][sale_price]" placeholder="Giá bán" min="0" required>
-                    </div>
-                    <div class="col-1 d-flex align-items-center justify-content-center">
-                        <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
-                    </div>
-                </div>
-            `;
-        editContainer.insertAdjacentHTML('beforeend', unitHtml);
-        editUnitIndex++;
-    });
-
-
-    const editImageInput = document.getElementById('edit-product-image-input');
-    editImageInput.addEventListener('change', function() {
-        const file = this.files[0];
-        const editPreviewContainer = document.getElementById('edit-image-preview-container');
-        const editPreviewImg = document.getElementById('edit-image-preview');
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                editPreviewImg.setAttribute('src', e.target.result);
-                editPreviewContainer.classList.remove('d-none');
-                document.getElementById('remove-current-image').value = "0";
-            }
-            reader.readAsDataURL(file);
-        }
-    });
-
-
-    document.getElementById('btn-edit-remove-preview').addEventListener('click', function(e) {
-        e.preventDefault();
-        editImageInput.value = "";
-        document.getElementById('edit-image-preview').setAttribute('src', '#');
-        document.getElementById('edit-image-preview-container').add('d-none');
-        document.getElementById('remove-current-image').value = "1";
     });
 </script>
 @endsection

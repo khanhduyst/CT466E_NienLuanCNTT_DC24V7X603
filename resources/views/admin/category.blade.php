@@ -29,7 +29,7 @@
         <div class="card border p-3" style="border-radius: 12px; background-color: #f8fafc;">
             <h6 class="fw-bold text-dark mb-3"><i class="bi bi-plus-circle-fill me-2 text-primary"></i>Thêm danh mục mới</h6>
 
-            <form action="/admin/danh-muc" method="POST">
+            <form action="/admin/danh-muc" method="POST" novalidate>
                 @csrf
                 <div class="mb-3">
                     <label for="name" class="form-label small fw-semibold">Tên danh mục</label>
@@ -111,7 +111,7 @@
                                     <h6 class="modal-title fw-bold text-dark"><i class="bi bi-pencil-square me-2 text-warning"></i>Sửa danh mục</h6>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
-                                <form action="/admin/danh-muc/{{ $category->id }}" method="POST">
+                                <form action="/admin/danh-muc/{{ $category->id }}" method="POST" novalidate>
                                     @csrf
                                     @method('PUT')
                                     <div class="modal-body text-start">
