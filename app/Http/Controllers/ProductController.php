@@ -116,19 +116,17 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
+        // 1. Validate các thông tin cơ bản của sản phẩm chính
         $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'required',
-            'barcode' => 'nullable|string|max:255',
-            'base_unit' => 'required|string|max:255',
-            'base_sale_price' => 'required|numeric|min:0',
             'image' => 'nullable|image|max:2048',
         ]);
 
         DB::transaction(function () use ($request, $id) {
             $product = Product::findOrFail($id);
 
-
+            // 2. Xử lý gỡ bỏ hình ảnh cũ nếu người dùng bấm xóa
             if ($request->remove_current_image == "1") {
                 if ($product->image && file_exists(public_path('uploads/products/' . $product->image))) {
                     unlink(public_path('uploads/products/' . $product->image));
@@ -136,8 +134,8 @@ class ProductController extends Controller
                 $product->image = null;
             }
 
+            // 3. Xử lý tải lên hình ảnh mới
             if ($request->hasFile('image')) {
-
                 if ($product->image && file_exists(public_path('uploads/products/' . $product->image))) {
                     unlink(public_path('uploads/products/' . $product->image));
                 }
@@ -146,45 +144,103 @@ class ProductController extends Controller
                 $product->image = $imageName;
             }
 
-
+            // 4. Cập nhật thông tin sản phẩm chính
             $product->update([
                 'name' => $request->name,
                 'category_id' => $request->category_id,
-                'barcode' => $request->barcode,
                 'image' => $product->image,
             ]);
 
+            // 5. CẬP NHẬT CÁC BIẾN THỂ CŨ ĐANG CÓ SẴN (Mảng 'variants')
+            if ($request->has('variants')) {
+                foreach ($request->variants as $vIndex => $vData) {
+                    if (isset($vData['id'])) {
+                        $variant = ProductVariant::find($vData['id']);
+                        if ($variant) {
+                            $variant->update([
+                                'variant_name' => $vData['variant_name'],
+                                'barcode' => $vData['barcode'] ?? null,
+                            ]);
 
-            $product->units()->delete();
+                            // Làm sạch đơn vị tính cũ của biến thể này để cập nhật lại
+                            $variant->units()->delete();
 
+                            // Tạo lại đơn vị tính gốc cho biến thể cũ (ĐỔI variant_id THÀNH product_variant_id)
+                            ProductUnit::create([
+                                'product_variant_id' => $variant->id,
+                                'unit_name'          => $vData['base_unit'],
+                                'conversion_rate'    => 1,
+                                'import_price'       => $vData['import_price'] ?? 0,
+                                'sale_price'         => $vData['sale_price'] ?? 0,
+                                'stock_quantity'     => $vData['stock_quantity'] ?? 0,
+                                'is_base'            => true,
+                            ]);
 
-            ProductUnit::create([
-                'product_id' => $product->id,
-                'unit_name' => $request->base_unit,
-                'conversion_rate' => 1,
-                'base_price' => $request->base_sale_price,
-                'sale_price' => $request->base_sale_price,
-                'is_base' => true,
-            ]);
+                            // Tạo lại các đơn vị quy đổi phụ (nếu có)
+                            if (isset($vData['conversions'])) {
+                                foreach ($vData['conversions'] as $cData) {
+                                    if (!empty($cData['unit_name'])) {
+                                        ProductUnit::create([
+                                            'product_variant_id' => $variant->id,
+                                            'unit_name'          => $cData['unit_name'],
+                                            'conversion_rate'    => $cData['conversion_rate'] ?? 1,
+                                            'import_price'       => $vData['import_price'] ?? 0,
+                                            'sale_price'         => $cData['sale_price'] ?? 0,
+                                            'stock_quantity'     => 0,
+                                            'is_base'            => false,
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-
-            if ($request->has('units')) {
-                foreach ($request->units as $unit) {
-                    if (!empty($unit['unit_name']) && !empty($unit['sale_price'])) {
-                        ProductUnit::create([
-                            'product_id' => $product->id,
-                            'unit_name' => $unit['unit_name'],
-                            'conversion_rate' => $unit['conversion_rate'] ?? 1,
-                            'base_price' => $unit['sale_price'],
-                            'sale_price' => $unit['sale_price'],
-                            'is_base' => false,
+            // 6. XỬ LÝ LƯU THÊM BIẾN THỂ MỚI TINH BỔ SUNG (Mảng 'new_variants')
+            if ($request->has('new_variants')) {
+                foreach ($request->new_variants as $nvData) {
+                    if (!empty($nvData['variant_name'])) {
+                        // Tạo mới một biến thể liên kết với sản phẩm này
+                        $newVariant = ProductVariant::create([
+                            'product_id'   => $product->id,
+                            'variant_name' => $nvData['variant_name'],
+                            'barcode'      => $nvData['barcode'] ?? null,
                         ]);
+
+                        // Lưu đơn vị tính gốc cho biến thể mới bổ sung
+                        ProductUnit::create([
+                            'product_variant_id' => $newVariant->id,
+                            'unit_name'          => $nvData['base_unit'],
+                            'conversion_rate'    => 1,
+                            'import_price'       => $nvData['import_price'] ?? 0,
+                            'sale_price'         => $nvData['sale_price'] ?? 0,
+                            'stock_quantity'     => $nvData['stock_quantity'] ?? 0,
+                            'is_base'            => true,
+                        ]);
+
+                        // Lưu các đơn vị quy đổi phụ của biến thể mới bổ sung (nếu có)
+                        if (isset($nvData['conversions'])) {
+                            foreach ($nvData['conversions'] as $ncData) {
+                                if (!empty($ncData['unit_name'])) {
+                                    ProductUnit::create([
+                                        'product_variant_id' => $newVariant->id,
+                                        'unit_name'          => $ncData['unit_name'],
+                                        'conversion_rate'    => $ncData['conversion_rate'] ?? 1,
+                                        'import_price'       => $nvData['import_price'] ?? 0,
+                                        'sale_price'         => $ncData['sale_price'] ?? 0,
+                                        'stock_quantity'     => 0,
+                                        'is_base'            => false,
+                                    ]);
+                                }
+                            }
+                        }
                     }
                 }
             }
         });
 
-        return redirect()->back()->with('success', 'Cập nhật sản phẩm thành công!');
+        return redirect()->back()->with('success', 'Cập nhật thông tin sản phẩm và cấu trúc biến thể thành công!');
     }
 
     public function destroy($id)

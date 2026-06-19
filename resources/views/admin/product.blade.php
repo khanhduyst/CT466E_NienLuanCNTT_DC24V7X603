@@ -314,8 +314,17 @@
                         </div>
 
                         <div class="col-md-8 ps-md-4">
-                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-layers-half me-2"></i>Danh sách biến thể đang có</h6>
-                            <div id="edit-variants-container" style="max-height: 450px; overflow-y: auto; padding-right: 5px;"></div>
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <h6 class="fw-bold text-success mb-0"><i class="bi bi-layers-half me-2"></i>Danh sách biến thể đang có</h6>
+                                <button type="button" class="btn btn-sm btn-outline-success fw-bold px-2 py-1" id="btn-add-variant-edit" style="font-size: 12px; border-radius: 8px;">
+                                    <i class="bi bi-plus-lg me-1"></i>Thêm biến thể mới
+                                </button>
+                            </div>
+
+                            <div style="max-height: 450px; overflow-y: auto; padding-right: 5px;">
+                                <div id="edit-variants-container"></div>
+                                <div id="edit-new-variants-container" class="mt-2"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -334,8 +343,11 @@
 <script>
     const allChildCategories = JSON.parse('{!! json_encode($categories->where("parent_id", "!=", null)->values()) !!}');
     let variantIndex = 0;
+    let editNewVariantIndex = 0;
 
-    // ĐỊNH NGHĨA HÀM SINH BIẾN THỂ ĐỘNG (DÙNG CHO CẢ TẢI LẦN ĐẦU VÀ KHÔI PHỤC DỮ LIỆU CŨ)
+    // ==========================================
+    // Hàm sinh biến thể động cho MODAL THÊM MỚI
+    // ==========================================
     function createVariantRow(oldData = null) {
         const variantsContainer = document.getElementById('variants-container');
         if (!variantsContainer) return;
@@ -343,7 +355,6 @@
         const vIndex = variantIndex;
         let unitIndex = 0;
 
-        // Đọc mảng lỗi an toàn qua thuộc tính HTML (Giải quyết triệt để lỗi Decorator)
         const formFormEl = document.getElementById('form-add-product');
         const allErrors = formFormEl && formFormEl.getAttribute('data-errors') ?
             JSON.parse(formFormEl.getAttribute('data-errors')) : {};
@@ -357,7 +368,6 @@
         const errImportPrice = getErrorMsg(`variants.${vIndex}.import_price`);
         const errSalePrice = getErrorMsg(`variants.${vIndex}.sale_price`);
 
-        // Khôi phục giá trị cũ nếu có
         const valVariantName = oldData ? (oldData.variant_name || '') : '';
         const valBarcode = oldData ? (oldData.barcode || '') : '';
         const valStock = oldData ? (oldData.stock_quantity || '0') : '0';
@@ -459,7 +469,6 @@
             unitIndex++;
         }
 
-        // Tự động khôi phục danh mục quy đổi phụ của biến thể nếu dính lỗi reload
         if (oldData && oldData.conversions) {
             Object.values(oldData.conversions).forEach(conv => {
                 addConversionRow(conv);
@@ -473,20 +482,137 @@
         variantIndex++;
     }
 
+    // ==========================================
+    // Hàm sinh biến thể MỚI BỔ SUNG cho MODAL SỬA
+    // ==========================================
+    function createNewVariantRowForEdit() {
+        const container = document.getElementById('edit-new-variants-container');
+        if (!container) return;
+
+        const curIndex = editNewVariantIndex;
+        let unitIndex = 0;
+
+        const html = `
+            <div class="card card-body border border-success-subtle shadow-sm mb-4 edit-new-variant-block" data-index="${curIndex}" style="border-radius: 12px; background-color: #f4faf6;">
+                <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2 border-success-subtle">
+                    <span class="fw-bold text-success" style="font-size: 14px;">
+                        <i class="bi bi-plus-circle-fill me-1"></i>Biến thể bổ sung mới #${curIndex + 1}
+                    </span>
+                    <button type="button" class="btn btn-sm text-danger p-0 btn-remove-new-edit-variant"><i class="bi bi-trash3-fill"></i> Hủy hàng</button>
+                </div>
+                
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold text-success">Tên thuộc tính / Dung tích mới</label>
+                        <input type="text" class="form-control form-control-sm" name="new_variants[${curIndex}][variant_name]" placeholder="Ví dụ: Chai 1 lít..." required>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-success">Mã vạch (Barcode)</label>
+                        <input type="text" class="form-control form-control-sm" name="new_variants[${curIndex}][barcode]" placeholder="Quét mã vạch...">
+                    </div>
+                    <div class="col-3">
+                        <label class="form-label small fw-semibold text-success">Tồn kho ban đầu</label>
+                        <input type="number" class="form-control form-control-sm" name="new_variants[${curIndex}][stock_quantity]" value="0" min="0" required>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3 bg-white p-2 border-start border-success border-3" style="border-radius: 6px;">
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-success">Đơn vị gốc</label>
+                        <input type="text" class="form-control form-control-sm" name="new_variants[${curIndex}][base_unit]" placeholder="Chai..." required>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-success">Giá nhập gốc (đ)</label>
+                        <input type="number" class="form-control form-control-sm" name="new_variants[${curIndex}][import_price]" placeholder="Giá vốn" min="0" required>
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label small fw-semibold text-success">Giá bán lẻ gốc (đ)</label>
+                        <input type="number" class="form-control form-control-sm" name="new_variants[${curIndex}][sale_price]" placeholder="Giá bán lẻ" min="0" required>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="small fw-bold text-muted"><i class="bi bi-arrow-left-right me-1"></i>Đơn vị quy đổi phụ (nếu có)</span>
+                    <button type="button" class="btn btn-sm btn-outline-success border-0 px-2 py-0 btn-add-conversion-edit-new" style="font-size: 12px;">
+                        <i class="bi bi-plus-lg"></i> Thêm quy đổi
+                    </button>
+                </div>
+
+                <div class="edit-new-conversion-list"></div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', html);
+
+        const currentBlock = container.querySelector(`.edit-new-variant-block[data-index="${curIndex}"]`);
+        const conversionList = currentBlock.querySelector('.edit-new-conversion-list');
+        const btnAddConversion = currentBlock.querySelector('.btn-add-conversion-edit-new');
+
+        btnAddConversion.addEventListener('click', function() {
+            const cIndex = unitIndex;
+            const cHtml = `
+                <div class="row g-2 mb-2 alignment-unit-row">
+                    <div class="col-4">
+                        <input type="text" class="form-control form-control-sm" name="new_variants[${curIndex}][conversions][${cIndex}][unit_name]" placeholder="Thùng, lốc..." required>
+                    </div>
+                    <div class="col-3">
+                        <input type="number" class="form-control form-control-sm" name="new_variants[${curIndex}][conversions][${cIndex}][conversion_rate]" placeholder="Tỷ lệ" min="2" required>
+                    </div>
+                    <div class="col-4">
+                        <input type="number" class="form-control form-control-sm" name="new_variants[${curIndex}][conversions][${cIndex}][sale_price]" placeholder="Giá bán" min="0" required>
+                    </div>
+                    <div class="col-1 d-flex align-items-center justify-content-center">
+                        <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
+                    </div>
+                </div>
+            `;
+            conversionList.insertAdjacentHTML('beforeend', cHtml);
+            unitIndex++;
+        });
+
+        editNewVariantIndex++;
+    }
+
+    // ==========================================
+    // Hàm bổ trợ: Lọc danh mục con cho MODAL SỬA
+    // ==========================================
+    function filterEditChildCategories(parentId, selectedChildId = '') {
+        const editChildSelect = document.getElementById('edit-child-category-select');
+        if (!editChildSelect) return;
+
+        editChildSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+        if (parentId) {
+            const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
+            if (filtered.length > 0) {
+                filtered.forEach(child => {
+                    const selected = child.id == selectedChildId ? 'selected' : '';
+                    editChildSelect.innerHTML += `<option value="${child.id}" ${selected}>${child.name}</option>`;
+                });
+                editChildSelect.disabled = false;
+            } else {
+                editChildSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
+                editChildSelect.disabled = true;
+            }
+        } else {
+            editChildSelect.disabled = true;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-        // KHAI BÁO BIẾN DOM CHÍNH
         const parentSelect = document.getElementById('parent-category-select');
         const childSelect = document.getElementById('child-category-select');
         const btnAddVariant = document.getElementById('btn-add-variant');
         const variantsContainer = document.getElementById('variants-container');
 
-        // BẬT MỞ BONG BÓNG POPOVER CHO DANH SÁCH BẢNG
+        const btnAddVariantEdit = document.getElementById('btn-add-variant-edit');
+        const editNewVariantsContainer = document.getElementById('edit-new-variants-container');
+        const editVariantsContainer = document.getElementById('edit-variants-container');
+
         var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
         var popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl)
         });
 
-        // XỬ LÝ KHÔI PHỤC HOẶC KHỞI TẠO BIẾN THỂ TRONG HỆ THỐNG
         const formFormEl = document.getElementById('form-add-product');
         const allErrors = formFormEl && formFormEl.getAttribute('data-errors') ? JSON.parse(formFormEl.getAttribute('data-errors')) : {};
         const oldVariants = formFormEl && formFormEl.getAttribute('data-old') ? JSON.parse(formFormEl.getAttribute('data-old')) : null;
@@ -496,24 +622,20 @@
             variantIndex = 0;
 
             if (oldVariants && Object.keys(oldVariants).length > 0) {
-                // Nếu submit form dính lỗi validation -> Giữ nguyên thông tin cũ và dựng lại số lượng form tương ứng
                 Object.values(oldVariants).forEach(variant => {
                     createVariantRow(variant);
                 });
             } else {
-                // Tải trang lần đầu tiên -> Sinh ra 1 khối biến thể trống mặc định
                 createVariantRow();
             }
         }
 
-        // SỰ KIỆN CLICK NÚT THÊM BIẾN THỂ PHỤ BẰNG TAY (ĐỒNG BỘ ĐÚNG INDEX)
         if (btnAddVariant) {
             btnAddVariant.addEventListener('click', function() {
                 createVariantRow();
             });
         }
 
-        // SỰ KIỆN CLICK XÓA BIẾN THỂ TRONG VÙNG CHỨA ĐỘNG
         if (variantsContainer) {
             variantsContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-remove-variant')) {
@@ -525,190 +647,63 @@
             });
         }
 
-        // XỬ LÝ KHÔI PHỤC DANH MỤC CŨ KHI FORM BỊ LOAD LẠI DO LỖI VALIDATION
-        const oldParentId = formFormEl && formFormEl.getAttribute('data-old-parent');
-        const oldChildId = formFormEl && formFormEl.getAttribute('data-old-child');
-
-        if (oldParentId) {
-            // Thiết lập giá trị cũ cho danh mục cha
-            parentSelect.value = oldParentId;
-            childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
-
-            const filtered = allChildCategories.filter(cate => cate.parent_id == oldParentId);
-            if (filtered.length > 0) {
-                filtered.forEach(child => {
-                    const isSelected = child.id == oldChildId ? 'selected' : '';
-                    childSelect.innerHTML += `<option value="${child.id}" ${isSelected}>${child.name}</option>`;
-                });
-                childSelect.disabled = false;
-                childSelect.required = true;
-            }
+        // ==========================================
+        // SỰ KIỆN LIÊN QUAN ĐẾN MODAL SỬA (EDIT)
+        // ==========================================
+        if (btnAddVariantEdit) {
+            btnAddVariantEdit.addEventListener('click', function() {
+                createNewVariantRowForEdit();
+            });
         }
 
-        // TỰ ĐỘNG BẬT BẬT LẠI MODAL NẾU HỆ THỐNG TRẢ VỀ BẤT KỲ LỖI VALIDATION NÀO
-        if (Object.keys(allErrors).length > 0) {
-            const addModalEl = document.getElementById('addProductModal');
-            if (addModalEl) {
-                const addModal = new bootstrap.Modal(addModalEl);
-                addModal.show();
-            }
-        }
-
-        // XỬ LÝ BỘ LỌC ĐA DANH MỤC 1000 MỤC THÔNG MINH CỦA TRANG CHÍNH
-        const filterParent = document.getElementById('filter-parent-category');
-        const searchChildInput = document.getElementById('search-child-input');
-        const filterChildId = document.getElementById('filter-child-id');
-        const suggestionsBox = document.getElementById('child-suggestions-box');
-
-        let currentParentId = filterParent.value;
-        let selectedChildId = filterChildId.value;
-
-        if (selectedChildId && currentParentId) {
-            const found = allChildCategories.find(c => c.id == selectedChildId);
-            if (found) searchChildInput.value = found.name;
-        }
-
-        filterParent.addEventListener('change', function() {
-            currentParentId = this.value;
-            searchChildInput.value = '';
-            filterChildId.value = '';
-            suggestionsBox.style.display = 'none';
-
-            if (currentParentId === '') {
-                searchChildInput.disabled = true;
-                searchChildInput.placeholder = "Chọn cha trước...";
-            } else {
-                searchChildInput.disabled = false;
-                searchChildInput.placeholder = "Gõ từ khóa để tìm mục con...";
-                searchChildInput.focus();
-            }
-        });
-
-        searchChildInput.addEventListener('input', function() {
-            const keyword = this.value.toLowerCase().trim();
-            suggestionsBox.innerHTML = '';
-
-            const matchedChildren = allChildCategories.filter(cate =>
-                cate.parent_id == currentParentId &&
-                cate.name.toLowerCase().includes(keyword)
-            );
-
-            if (matchedChildren.length > 0) {
-                matchedChildren.forEach(child => {
-                    const itemHtml = `<button type="button" class="dropdown-item py-2 text-start small-suggestion-item" data-id="${child.id}" data-name="${child.name}" style="font-size: 13px;"><i class="bi bi-file-earmark-text text-muted me-2"></i>${child.name}</button>`;
-                    suggestionsBox.insertAdjacentHTML('beforeend', itemHtml);
-                });
-                suggestionsBox.style.display = 'block';
-            } else {
-                suggestionsBox.innerHTML = '<div class="text-muted p-2 small text-center">❌ Không thấy mục con</div>';
-                suggestionsBox.style.display = 'block';
-            }
-        });
-
-        suggestionsBox.addEventListener('click', function(e) {
-            const clickedBtn = e.target.closest('.small-suggestion-item');
-            if (clickedBtn) {
-                searchChildInput.value = clickedBtn.getAttribute('data-name');
-                filterChildId.value = clickedBtn.getAttribute('data-id');
-                suggestionsBox.style.display = 'none';
-            }
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!searchChildInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-                suggestionsBox.style.display = 'none';
-            }
-        });
-
-        // XỬ LÝ CHỌN DANH MỤC TRONG MODAL THÊM
-        if (parentSelect && childSelect) {
-            parentSelect.addEventListener('change', function() {
-                const parentId = this.value;
-                childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
-
-                if (parentId === "") {
-                    childSelect.disabled = true;
-                    childSelect.required = false;
-                } else {
-                    const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
-
-                    if (filtered.length > 0) {
-                        filtered.forEach(child => {
-                            childSelect.innerHTML += `<option value="${child.id}">${child.name}</option>`;
-                        });
-                        childSelect.disabled = false;
-                        childSelect.required = true;
-                    } else {
-                        childSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
-                        childSelect.disabled = true;
-                        childSelect.required = false;
-                    }
+        if (editNewVariantsContainer) {
+            editNewVariantsContainer.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-new-edit-variant')) {
+                    e.target.closest('.edit-new-variant-block').remove();
+                }
+                if (e.target.closest('.btn-remove-unit-row')) {
+                    e.target.closest('.alignment-unit-row').remove();
                 }
             });
         }
 
-        // PREVIEW ẢNH MODAL THÊM
-        const imageInput = document.getElementById('product-image-input');
-        const previewContainer = document.getElementById('image-preview-container');
-        const previewImg = document.getElementById('image-preview');
-        const btnRemovePreview = document.getElementById('btn-remove-preview');
+        // Xử lý bấm thêm dòng quy đổi phụ trực tiếp cho BIẾN THỂ CŨ
+        if (editVariantsContainer) {
+            editVariantsContainer.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-unit-row')) {
+                    e.target.closest('.alignment-unit-row').remove();
+                    return;
+                }
 
-        if (imageInput) {
-            imageInput.addEventListener('change', function() {
-                const file = this.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        previewImg.setAttribute('src', e.target.result);
-                        previewContainer.classList.remove('d-none');
-                        previewContainer.classList.add('d-inline-block');
-                    }
-                    reader.readAsDataURL(file);
-                } else {
-                    previewContainer.classList.add('d-none');
+                const btnAddConvOld = e.target.closest('.btn-add-conversion-old');
+                if (btnAddConvOld) {
+                    const vIndex = btnAddConvOld.getAttribute('data-variant-index');
+                    const conversionList = editVariantsContainer.querySelector(`.edit-conversion-units-list[data-variant-index="${vIndex}"]`);
+
+                    const uIndex = conversionList.querySelectorAll('.alignment-unit-row').length;
+
+                    const cHtml = `
+                        <div class="row g-2 mb-2 alignment-unit-row">
+                            <div class="col-4">
+                                <input type="text" class="form-control form-control-sm" name="variants[${vIndex}][conversions][${uIndex}][unit_name]" placeholder="Thùng, lốc..." required>
+                            </div>
+                            <div class="col-3">
+                                <input type="number" class="form-control form-control-sm" name="variants[${vIndex}][conversions][${uIndex}][conversion_rate]" placeholder="Tỷ lệ" min="2" required>
+                            </div>
+                            <div class="col-4">
+                                <input type="number" class="form-control form-control-sm" name="variants[${vIndex}][conversions][${uIndex}][sale_price]" placeholder="Giá bán" min="0" required>
+                            </div>
+                            <div class="col-1 d-flex align-items-center justify-content-center">
+                                <button type="button" class="btn btn-sm text-danger p-0 btn-remove-unit-row"><i class="bi bi-x-circle-fill"></i></button>
+                            </div>
+                        </div>
+                    `;
+                    conversionList.insertAdjacentHTML('beforeend', cHtml);
                 }
             });
         }
 
-        if (btnRemovePreview) {
-            btnRemovePreview.addEventListener('click', function(e) {
-                e.preventDefault();
-                imageInput.value = "";
-                previewImg.setAttribute('src', '#');
-                previewContainer.classList.add('d-none');
-                previewContainer.classList.remove('d-inline-block');
-            });
-        }
-
-        // XỬ LÝ ĐỔ DỮ LIỆU ĐA BIẾN THỂ VÀO MODAL SỬA
-        const editParentSelect = document.getElementById('edit-parent-category-select');
-        const editChildSelect = document.getElementById('edit-child-category-select');
-
-        function filterEditChildCategories(parentId, selectedChildId = '') {
-            editChildSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
-            if (parentId) {
-                const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
-                if (filtered.length > 0) {
-                    filtered.forEach(child => {
-                        const selected = child.id == selectedChildId ? 'selected' : '';
-                        editChildSelect.innerHTML += `<option value="${child.id}" ${selected}>${child.name}</option>`;
-                    });
-                    editChildSelect.disabled = false;
-                } else {
-                    editChildSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
-                    editChildSelect.disabled = true;
-                }
-            } else {
-                editChildSelect.disabled = true;
-            }
-        }
-
-        if (editParentSelect) {
-            editParentSelect.addEventListener('change', function() {
-                filterEditChildCategories(this.value);
-            });
-        }
-
+        // XỬ LÝ ĐỔ DỮ LIỆU ĐA BIẾN THỂ VÀO MODAL SỬA KHI CLICK LỚP CŨ
         document.querySelectorAll('.btn-edit-product').forEach(button => {
             button.addEventListener('click', function() {
                 const id = this.getAttribute('data-id');
@@ -722,8 +717,16 @@
                 document.getElementById('edit-name').value = name;
                 document.getElementById('remove-current-image').value = "0";
 
-                editParentSelect.value = parentId;
+                const editParentSelect = document.getElementById('edit-parent-category-select');
+                if (editParentSelect) {
+                    editParentSelect.value = parentId;
+                }
                 filterEditChildCategories(parentId, childId);
+
+                if (editNewVariantsContainer) {
+                    editNewVariantsContainer.innerHTML = '';
+                    editNewVariantIndex = 0;
+                }
 
                 const editPreviewContainer = document.getElementById('edit-image-preview-container');
                 const editPreviewImg = document.getElementById('edit-image-preview');
@@ -735,9 +738,7 @@
                     editPreviewContainer.classList.add('d-none');
                 }
 
-                const editVariantsContainer = document.getElementById('edit-variants-container');
                 if (!editVariantsContainer) return;
-
                 editVariantsContainer.innerHTML = '';
                 let editVIndex = 0;
 
@@ -783,7 +784,14 @@
                             </div>
                         </div>
 
-                        <div class="edit-conversion-units-list"></div>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small fw-bold text-muted"><i class="bi bi-arrow-left-right me-1"></i>Đơn vị quy đổi phụ (nếu có)</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary border-0 px-2 py-0 btn-add-conversion-old" data-variant-index="${editVIndex}" style="font-size: 12px;">
+                                <i class="bi bi-plus-lg"></i> Thêm quy đổi
+                            </button>
+                        </div>
+
+                        <div class="edit-conversion-units-list" data-variant-index="${editVIndex}"></div>
                     </div>
                     `;
 
@@ -820,7 +828,122 @@
             });
         });
 
-        // PREVIEW ẢNH MODAL SỬA
+        // GIỮ NGUYÊN CÁC LOGIC PHỤ TRỢ KHÁC
+        const oldParentId = formFormEl && formFormEl.getAttribute('data-old-parent');
+        const oldChildId = formFormEl && formFormEl.getAttribute('data-old-child');
+        if (oldParentId) {
+            parentSelect.value = oldParentId;
+            childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+            const filtered = allChildCategories.filter(cate => cate.parent_id == oldParentId);
+            if (filtered.length > 0) {
+                filtered.forEach(child => {
+                    const isSelected = child.id == oldChildId ? 'selected' : '';
+                    childSelect.innerHTML += `<option value="${child.id}" ${isSelected}>${child.name}</option>`;
+                });
+                childSelect.disabled = false;
+                childSelect.required = true;
+            }
+        }
+
+        if (Object.keys(allErrors).length > 0) {
+            const addModalEl = document.getElementById('addProductModal');
+            if (addModalEl) {
+                const addModal = new bootstrap.Modal(addModalEl);
+                addModal.show();
+            }
+        }
+
+        const filterParent = document.getElementById('filter-parent-category');
+        const searchChildInput = document.getElementById('search-child-input');
+        const filterChildId = document.getElementById('filter-child-id');
+        const suggestionsBox = document.getElementById('child-suggestions-box');
+        let currentParentId = filterParent.value;
+        let selectedChildId = filterChildId.value;
+
+        if (selectedChildId && currentParentId) {
+            const found = allChildCategories.find(c => c.id == selectedChildId);
+            if (found) searchChildInput.value = found.name;
+        }
+
+        filterParent.addEventListener('change', function() {
+            currentParentId = this.value;
+            searchChildInput.value = '';
+            filterChildId.value = '';
+            suggestionsBox.style.display = 'none';
+            if (currentParentId === '') {
+                searchChildInput.disabled = true;
+                searchChildInput.placeholder = "Chọn cha trước...";
+            } else {
+                searchChildInput.disabled = false;
+                searchChildInput.placeholder = "Gõ từ khóa để tìm mục con...";
+                searchChildInput.focus();
+            }
+        });
+
+        searchChildInput.addEventListener('input', function() {
+            const keyword = this.value.toLowerCase().trim();
+            suggestionsBox.innerHTML = '';
+            const matchedChildren = allChildCategories.filter(cate =>
+                cate.parent_id == currentParentId && cate.name.toLowerCase().includes(keyword)
+            );
+            if (matchedChildren.length > 0) {
+                matchedChildren.forEach(child => {
+                    const itemHtml = `<button type="button" class="dropdown-item py-2 text-start small-suggestion-item" data-id="${child.id}" data-name="${child.name}" style="font-size: 13px;"><i class="bi bi-file-earmark-text text-muted me-2"></i>${child.name}</button>`;
+                    suggestionsBox.insertAdjacentHTML('beforeend', itemHtml);
+                });
+                suggestionsBox.style.display = 'block';
+            } else {
+                suggestionsBox.innerHTML = '<div class="text-muted p-2 small text-center">❌ Không thấy mục con</div>';
+                suggestionsBox.style.display = 'block';
+            }
+        });
+
+        suggestionsBox.addEventListener('click', function(e) {
+            const clickedBtn = e.target.closest('.small-suggestion-item');
+            if (clickedBtn) {
+                searchChildInput.value = clickedBtn.getAttribute('data-name');
+                filterChildId.value = clickedBtn.getAttribute('data-id');
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchChildInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.style.display = 'none';
+            }
+        });
+
+        if (parentSelect && childSelect) {
+            parentSelect.addEventListener('change', function() {
+                const parentId = this.value;
+                childSelect.innerHTML = '<option value="">-- Chọn danh mục con --</option>';
+                if (parentId === "") {
+                    childSelect.disabled = true;
+                    childSelect.required = false;
+                } else {
+                    const filtered = allChildCategories.filter(cate => cate.parent_id == parentId);
+                    if (filtered.length > 0) {
+                        filtered.forEach(child => {
+                            childSelect.innerHTML += `<option value="${child.id}">${child.name}</option>`;
+                        });
+                        childSelect.disabled = false;
+                        childSelect.required = true;
+                    } else {
+                        childSelect.innerHTML = '<option value="">(Không có danh mục con)</option>';
+                        childSelect.disabled = true;
+                        childSelect.required = false;
+                    }
+                }
+            });
+        }
+
+        const editParentSelect = document.getElementById('edit-parent-category-select');
+        if (editParentSelect) {
+            editParentSelect.addEventListener('change', function() {
+                filterEditChildCategories(this.value);
+            });
+        }
+
         const editImageInput = document.getElementById('edit-product-image-input');
         if (editImageInput) {
             editImageInput.addEventListener('change', function() {
@@ -850,12 +973,10 @@
             });
         }
 
-        // SỰ KIỆN XÓA SẢN PHẨM SOFT DELETE
-        document.querySelectorAll('.btn-delete-product').forEach(function(button) {
+        document.querySelectorAll('.btn-delete-product').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 var id = this.getAttribute('data-id');
-
                 Swal.fire({
                     title: 'Xác nhận xóa?',
                     text: "Sản phẩm này sẽ bị ẩn đi khỏi hệ thống bán hàng!",
