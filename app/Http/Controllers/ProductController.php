@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\ProductUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth; // Đã thêm use Auth chuẩn chỉnh
 
 class ProductController extends Controller
 {
@@ -63,10 +64,13 @@ class ProductController extends Controller
             'variants.*.stock_quantity.required' => 'Số lượng tồn kho ban đầu không được để trống.',
         ]);
 
-        DB::transaction(function () use ($request) {
+        $userId = Auth::id() ?? 1; // Sử dụng Auth::id() sạch sẽ không bị gạch đỏ
+
+        DB::transaction(function () use ($request, $userId) {
             $imageName = null;
             if ($request->hasFile('image')) {
-                $imageName = time() . '_' . $request->file('image')->getClientOriginalName();
+                $extension = $request->file('image')->getClientOriginalExtension();
+                $imageName = time() . '_' . uniqid() . '.' . $extension;
                 $request->file('image')->move(public_path('uploads/products'), $imageName);
             }
 
@@ -76,15 +80,30 @@ class ProductController extends Controller
                 'image' => $imageName,
             ]);
 
+            /** @var \App\Models\Product $product */
+            $productId = $product->id; // Định danh giúp VS Code không gạch đỏ lỗi ID giả
+
+            DB::table('activity_logs')->insert([
+                'user_id' => $userId,
+                'action' => "Thêm mới sản phẩm chính: {$product->name} (ID: {$productId})",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             foreach ($request->variants as $vData) {
                 $variant = ProductVariant::create([
-                    'product_id' => $product->id,
+                    'product_id' => $productId,
                     'variant_name' => $vData['variant_name'],
                     'barcode' => $vData['barcode'] ?? null,
                 ]);
 
+                /** @var \App\Models\ProductVariant $variant */
+                $variantId = $variant->id;
+
                 ProductUnit::create([
-                    'product_variant_id' => $variant->id,
+                    'product_variant_id' => $variantId,
                     'unit_name' => $vData['base_unit'],
                     'conversion_rate' => 1,
                     'import_price' => $vData['import_price'],
@@ -93,11 +112,23 @@ class ProductController extends Controller
                     'is_base' => true,
                 ]);
 
+                if ($vData['stock_quantity'] > 0) {
+                    DB::table('inventory_logs')->insert([
+                        'product_id' => $productId,
+                        'user_id' => $userId,
+                        'change_type' => 'import',
+                        'quantity' => $vData['stock_quantity'],
+                        'note' => "Khởi tạo tồn kho ban đầu cho biến thể [{$vData['variant_name']}]",
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
                 if (isset($vData['conversions']) && is_array($vData['conversions'])) {
                     foreach ($vData['conversions'] as $cData) {
                         if (!empty($cData['unit_name']) && !empty($cData['sale_price'])) {
                             ProductUnit::create([
-                                'product_variant_id' => $variant->id,
+                                'product_variant_id' => $variantId,
                                 'unit_name' => $cData['unit_name'],
                                 'conversion_rate' => $cData['conversion_rate'] ?? 1,
                                 'import_price' => $vData['import_price'] * ($cData['conversion_rate'] ?? 1),
@@ -116,17 +147,20 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        // 1. Validate các thông tin cơ bản của sản phẩm chính
         $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'required',
             'image' => 'nullable|image|max:2048',
         ]);
 
-        DB::transaction(function () use ($request, $id) {
+        $userId = Auth::id() ?? 1;
+
+        DB::transaction(function () use ($request, $id, $userId) {
             $product = Product::findOrFail($id);
 
-            // 2. Xử lý gỡ bỏ hình ảnh cũ nếu người dùng bấm xóa
+            /** @var \App\Models\Product $product */
+            $productId = $product->id;
+
             if ($request->remove_current_image == "1") {
                 if ($product->image && file_exists(public_path('uploads/products/' . $product->image))) {
                     unlink(public_path('uploads/products/' . $product->image));
@@ -134,54 +168,82 @@ class ProductController extends Controller
                 $product->image = null;
             }
 
-            // 3. Xử lý tải lên hình ảnh mới
             if ($request->hasFile('image')) {
                 if ($product->image && file_exists(public_path('uploads/products/' . $product->image))) {
                     unlink(public_path('uploads/products/' . $product->image));
                 }
-                $imageName = time() . '_' . $request->file('image')->getClientOriginalName();
+                $extension = $request->file('image')->getClientOriginalExtension();
+                $imageName = time() . '_' . uniqid() . '.' . $extension;
                 $request->file('image')->move(public_path('uploads/products'), $imageName);
                 $product->image = $imageName;
             }
 
-            // 4. Cập nhật thông tin sản phẩm chính
             $product->update([
                 'name' => $request->name,
                 'category_id' => $request->category_id,
                 'image' => $product->image,
             ]);
 
-            // 5. CẬP NHẬT CÁC BIẾN THỂ CŨ ĐANG CÓ SẴN (Mảng 'variants')
+            DB::table('activity_logs')->insert([
+                'user_id' => $userId,
+                'action' => "Cập nhật thông tin sản phẩm: {$product->name} (ID: {$productId})",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
             if ($request->has('variants')) {
                 foreach ($request->variants as $vIndex => $vData) {
                     if (isset($vData['id'])) {
                         $variant = ProductVariant::find($vData['id']);
                         if ($variant) {
+                            /** @var \App\Models\ProductVariant $variant */
+                            $variantId = $variant->id;
+
                             $variant->update([
                                 'variant_name' => $vData['variant_name'],
                                 'barcode' => $vData['barcode'] ?? null,
                             ]);
 
-                            // Làm sạch đơn vị tính cũ của biến thể này để cập nhật lại
+                            $oldBaseUnit = DB::table('product_units')
+                                ->where('product_variant_id', $variantId)
+                                ->where('is_base', true)
+                                ->first();
+
+                            $oldStock = $oldBaseUnit ? $oldBaseUnit->stock_quantity : 0;
+                            $newStock = $vData['stock_quantity'] ?? 0;
+
                             $variant->units()->delete();
 
-                            // Tạo lại đơn vị tính gốc cho biến thể cũ (ĐỔI variant_id THÀNH product_variant_id)
                             ProductUnit::create([
-                                'product_variant_id' => $variant->id,
+                                'product_variant_id' => $variantId,
                                 'unit_name'          => $vData['base_unit'],
                                 'conversion_rate'    => 1,
                                 'import_price'       => $vData['import_price'] ?? 0,
                                 'sale_price'         => $vData['sale_price'] ?? 0,
-                                'stock_quantity'     => $vData['stock_quantity'] ?? 0,
+                                'stock_quantity'     => $newStock,
                                 'is_base'            => true,
                             ]);
 
-                            // Tạo lại các đơn vị quy đổi phụ (nếu có)
+                            if ($oldStock != $newStock) {
+                                $diff = $newStock - $oldStock;
+                                DB::table('inventory_logs')->insert([
+                                    'product_id'   => $productId,
+                                    'user_id'      => $userId,
+                                    'change_type'  => 'adjustment',
+                                    'quantity'     => $diff,
+                                    'note'         => "Thay đổi tồn kho thủ công từ [{$oldStock}] thành [{$newStock}] tại biến thể [{$vData['variant_name']}]",
+                                    'created_at'   => now(),
+                                    'updated_at'   => now(),
+                                ]);
+                            }
+
                             if (isset($vData['conversions'])) {
                                 foreach ($vData['conversions'] as $cData) {
                                     if (!empty($cData['unit_name'])) {
                                         ProductUnit::create([
-                                            'product_variant_id' => $variant->id,
+                                            'product_variant_id' => $variantId,
                                             'unit_name'          => $cData['unit_name'],
                                             'conversion_rate'    => $cData['conversion_rate'] ?? 1,
                                             'import_price'       => $vData['import_price'] ?? 0,
@@ -197,20 +259,20 @@ class ProductController extends Controller
                 }
             }
 
-            // 6. XỬ LÝ LƯU THÊM BIẾN THỂ MỚI TINH BỔ SUNG (Mảng 'new_variants')
             if ($request->has('new_variants')) {
                 foreach ($request->new_variants as $nvData) {
                     if (!empty($nvData['variant_name'])) {
-                        // Tạo mới một biến thể liên kết với sản phẩm này
                         $newVariant = ProductVariant::create([
-                            'product_id'   => $product->id,
+                            'product_id'   => $productId,
                             'variant_name' => $nvData['variant_name'],
                             'barcode'      => $nvData['barcode'] ?? null,
                         ]);
 
-                        // Lưu đơn vị tính gốc cho biến thể mới bổ sung
+                        /** @var \App\Models\ProductVariant $newVariant */
+                        $newVariantId = $newVariant->id;
+
                         ProductUnit::create([
-                            'product_variant_id' => $newVariant->id,
+                            'product_variant_id' => $newVariantId,
                             'unit_name'          => $nvData['base_unit'],
                             'conversion_rate'    => 1,
                             'import_price'       => $nvData['import_price'] ?? 0,
@@ -219,21 +281,16 @@ class ProductController extends Controller
                             'is_base'            => true,
                         ]);
 
-                        // Lưu các đơn vị quy đổi phụ của biến thể mới bổ sung (nếu có)
-                        if (isset($nvData['conversions'])) {
-                            foreach ($nvData['conversions'] as $ncData) {
-                                if (!empty($ncData['unit_name'])) {
-                                    ProductUnit::create([
-                                        'product_variant_id' => $newVariant->id,
-                                        'unit_name'          => $ncData['unit_name'],
-                                        'conversion_rate'    => $ncData['conversion_rate'] ?? 1,
-                                        'import_price'       => $nvData['import_price'] ?? 0,
-                                        'sale_price'         => $ncData['sale_price'] ?? 0,
-                                        'stock_quantity'     => 0,
-                                        'is_base'            => false,
-                                    ]);
-                                }
-                            }
+                        if (($nvData['stock_quantity'] ?? 0) > 0) {
+                            DB::table('inventory_logs')->insert([
+                                'product_id'   => $productId,
+                                'user_id'      => $userId,
+                                'change_type'  => 'import',
+                                'quantity'     => $nvData['stock_quantity'],
+                                'note'         => "Khởi tạo tồn kho ban đầu cho biến thể mới thêm [{$nvData['variant_name']}]",
+                                'created_at'   => now(),
+                                'updated_at'   => now(),
+                            ]);
                         }
                     }
                 }
@@ -245,8 +302,24 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
+        $userId = Auth::id() ?? 1;
         $product = Product::findOrFail($id);
-        $product->update(['is_deleted' => true]);
+
+        /** @var \App\Models\Product $product */
+        $productId = $product->id;
+
+        DB::transaction(function () use ($product, $productId, $userId) {
+            $product->update(['is_deleted' => true]);
+
+            DB::table('activity_logs')->insert([
+                'user_id' => $userId,
+                'action' => "Xóa sản phẩm (Soft Delete): {$product->name} (ID: {$productId})",
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
 
         return redirect()->back()->with('success', 'Đã xóa sản phẩm thành công!');
     }

@@ -5,6 +5,6 @@
 <p class="text-muted">Chào mừng bạn đã quay trở lại làm việc hôm nay. Dưới đây là báo cáo nhanh của cửa hàng.</p>
 
 <div class="alert alert-success border-0 shadow-sm d-inline-block p-3" style="border-radius: 12px;">
-    <i class="bi bi-check-circle-fill me-2"></i> Hệ thống Mini POS đã sẵn sàng vận hành!
+    <i class="bi bi-check-circle-fill me-2"></i> .....
 </div>
 @endsection

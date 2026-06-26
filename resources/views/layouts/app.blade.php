@@ -107,6 +107,16 @@
             color: #ffffff;
         }
 
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .nav-link:hover {
+            background-color: #f8f9fa;
+            color: #0d6efd !important;
+            opacity: 1 !important;
+        }
+
         /* 📱 ĐỊNH NGHĨA RESPONSIVE TRÊN MOBILE (MÀN HÌNH NHỎ HƠN 992PM) */
         @media (max-width: 991.98px) {
             .sidebar {
@@ -165,18 +175,42 @@
                             <i class="bi bi-chevron-down small chevron-icon"></i>
                         </a>
 
-                        <div class="collapse {{ Request::is('admin/danh-muc') || Request::is('admin/san-pham*') ? 'show' : '' }} ms-4 ps-2 mt-1" id="menuHangHoa">
-                            <ul class="nav flex-column border-start text-start">
+                        <div class="collapse {{ Request::is('admin/danh-muc') || Request::is('admin/san-pham*') || Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'show' : '' }} ms-3 mt-1" id="menuHangHoa">
+                            <ul class="nav flex-column border-start text-start ps-2" style="border-color: #dee2e6 !important;">
+
                                 <li class="nav-item">
-                                    <a href="/admin/danh-muc" class="nav-link py-1 small {{ Request::is('admin/danh-muc') ? 'fw-bold text-primary' : 'text-muted' }}">
-                                        <i class="bi bi-tags me-2"></i>Danh mục sản phẩm
+                                    <a href="/admin/danh-muc" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/danh-muc') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
+                                        <i class="bi bi-tags fs-6 text-center me-2" style="width: 20px;"></i>
+                                        <span>Danh mục sản phẩm</span>
                                     </a>
                                 </li>
+
                                 <li class="nav-item mt-1">
-                                    <a href="/admin/san-pham" class="nav-link py-1 small {{ Request::is('admin/san-pham*') ? 'fw-bold text-primary' : 'text-muted' }}">
-                                        <i class="bi bi-cart-plus me-2"></i>Danh sách sản phẩm
+                                    <a href="/admin/san-pham" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/san-pham*') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
+                                        <i class="bi bi-box-seam fs-6 text-center me-2" style="width: 20px;"></i> <span>Danh sách sản phẩm</span>
                                     </a>
                                 </li>
+
+                                <li class="nav-item mt-1">
+                                    <a href="/admin/nhap-kho" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/nhap-kho') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
+                                        <i class="bi bi-file-earmark-arrow-down fs-6 text-center me-2" style="width: 20px;"></i> <span>Phiếu nhập kho</span>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item mt-1">
+                                    <a href="{{ route('admin.purchase.history') }}" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/lich-su-nhap-kho') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
+                                        <i class="bi bi-clock-history fs-6 text-center me-2" style="width: 20px;"></i>
+                                        <span>Lịch sử nhập kho</span>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item mt-1">
+                                    <a href="/admin/nha-cung-cap" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/nha-cung-cap') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
+                                        <i class="bi bi-truck fs-6 text-center me-2" style="width: 20px;"></i>
+                                        <span>Nhà cung cấp</span>
+                                    </a>
+                                </li>
+
                             </ul>
                         </div>
                     </li>
@@ -248,6 +282,11 @@
                                 <li class="nav-item mt-1">
                                     <a href="/admin/san-pham" class="nav-link py-1 small {{ Request::is('admin/san-pham*') ? 'fw-bold text-primary' : 'text-muted' }}">
                                         <i class="bi bi-cart-plus me-2"></i>Danh sách sản phẩm
+                                    </a>
+                                </li>
+                                <li class="nav-item mt-1">
+                                    <a href="/admin/nhap-kho" class="nav-link py-1 small {{ Request::is('admin/nhap-kho') ? 'fw-bold text-primary' : 'text-muted' }}">
+                                        <i class="bi bi-cart-plus me-2"></i>Phiếu nhập kho
                                     </a>
                                 </li>
                             </ul>

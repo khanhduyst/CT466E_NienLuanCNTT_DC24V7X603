@@ -345,9 +345,9 @@
     let variantIndex = 0;
     let editNewVariantIndex = 0;
 
-    // ==========================================
-    // Hàm sinh biến thể động cho MODAL THÊM MỚI
-    // ==========================================
+
+
+
     function createVariantRow(oldData = null) {
         const variantsContainer = document.getElementById('variants-container');
         if (!variantsContainer) return;
@@ -482,9 +482,9 @@
         variantIndex++;
     }
 
-    // ==========================================
-    // Hàm sinh biến thể MỚI BỔ SUNG cho MODAL SỬA
-    // ==========================================
+
+
+
     function createNewVariantRowForEdit() {
         const container = document.getElementById('edit-new-variants-container');
         if (!container) return;
@@ -573,9 +573,9 @@
         editNewVariantIndex++;
     }
 
-    // ==========================================
-    // Hàm bổ trợ: Lọc danh mục con cho MODAL SỬA
-    // ==========================================
+
+
+
     function filterEditChildCategories(parentId, selectedChildId = '') {
         const editChildSelect = document.getElementById('edit-child-category-select');
         if (!editChildSelect) return;
@@ -647,9 +647,9 @@
             });
         }
 
-        // ==========================================
-        // SỰ KIỆN LIÊN QUAN ĐẾN MODAL SỬA (EDIT)
-        // ==========================================
+
+
+
         if (btnAddVariantEdit) {
             btnAddVariantEdit.addEventListener('click', function() {
                 createNewVariantRowForEdit();
@@ -667,7 +667,7 @@
             });
         }
 
-        // Xử lý bấm thêm dòng quy đổi phụ trực tiếp cho BIẾN THỂ CŨ
+
         if (editVariantsContainer) {
             editVariantsContainer.addEventListener('click', function(e) {
                 if (e.target.closest('.btn-remove-unit-row')) {
@@ -703,7 +703,7 @@
             });
         }
 
-        // XỬ LÝ ĐỔ DỮ LIỆU ĐA BIẾN THỂ VÀO MODAL SỬA KHI CLICK LỚP CŨ
+
         document.querySelectorAll('.btn-edit-product').forEach(button => {
             button.addEventListener('click', function() {
                 const id = this.getAttribute('data-id');
@@ -828,7 +828,7 @@
             });
         });
 
-        // GIỮ NGUYÊN CÁC LOGIC PHỤ TRỢ KHÁC
+
         const oldParentId = formFormEl && formFormEl.getAttribute('data-old-parent');
         const oldChildId = formFormEl && formFormEl.getAttribute('data-old-child');
         if (oldParentId) {

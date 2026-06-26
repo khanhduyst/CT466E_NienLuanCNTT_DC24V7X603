@@ -41,9 +41,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         SystemSetting::create(['key' => 'store_name', 'value' => 'Tiệm Tạp Hóa Thông Minh SmartGrocer']);
-        SystemSetting::create(['key' => 'vietqr_bank_id', 'value' => '970415']); 
+        SystemSetting::create(['key' => 'vietqr_bank_id', 'value' => '970415']);
         SystemSetting::create(['key' => 'vietqr_account_no', 'value' => '0123456789999']);
         SystemSetting::create(['key' => 'point_conversion_rate', 'value' => '10000']);
         SystemSetting::create(['key' => 'point_redeem_value', 'value' => '100']);
+
+        $this->call([
+            CategorySeeder::class,
+            SupplierSeeder::class,
+            ProductSeeder::class,
+        ]);
     }
 }
