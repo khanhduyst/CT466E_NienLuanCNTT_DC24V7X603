@@ -84,7 +84,7 @@
                         <tr>
                             <td class="fw-bold text-secondary ps-3">{{ $loop->iteration }}</td>
                             <td>
-                                @if($product->image)
+                                @if($product->image && file_exists(public_path('uploads/products/' . $product->image)))
                                 <img src="{{ asset('uploads/products/' . $product->image) }}" class="object-fit-cover border shadow-sm" style="width: 45px; height: 45px; border-radius: 8px;">
                                 @else
                                 <div class="bg-light border text-muted d-flex align-items-center justify-content-center shadow-sm" style="width: 45px; height: 45px; border-radius: 8px; font-size: 18px;">

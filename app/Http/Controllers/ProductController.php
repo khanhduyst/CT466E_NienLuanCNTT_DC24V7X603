@@ -155,10 +155,9 @@ class ProductController extends Controller
 
         $userId = Auth::id() ?? 1;
 
-        DB::transaction(function () use ($request, $id, $userId) {
+        DB::beginTransaction();
+        try {
             $product = Product::findOrFail($id);
-
-            /** @var \App\Models\Product $product */
             $productId = $product->id;
 
             if ($request->remove_current_image == "1") {
@@ -198,7 +197,6 @@ class ProductController extends Controller
                     if (isset($vData['id'])) {
                         $variant = ProductVariant::find($vData['id']);
                         if ($variant) {
-                            /** @var \App\Models\ProductVariant $variant */
                             $variantId = $variant->id;
 
                             $variant->update([
@@ -214,17 +212,65 @@ class ProductController extends Controller
                             $oldStock = $oldBaseUnit ? $oldBaseUnit->stock_quantity : 0;
                             $newStock = $vData['stock_quantity'] ?? 0;
 
-                            $variant->units()->delete();
+                            DB::table('product_units')
+                                ->where('product_variant_id', $variantId)
+                                ->where('is_base', true)
+                                ->update([
+                                    'unit_name'       => $vData['base_unit'],
+                                    'import_price'    => $vData['import_price'] ?? 0,
+                                    'sale_price'      => $vData['sale_price'] ?? 0,
+                                    'stock_quantity'  => $newStock,
+                                    'updated_at'      => now(),
+                                ]);
 
-                            ProductUnit::create([
-                                'product_variant_id' => $variantId,
-                                'unit_name'          => $vData['base_unit'],
-                                'conversion_rate'    => 1,
-                                'import_price'       => $vData['import_price'] ?? 0,
-                                'sale_price'         => $vData['sale_price'] ?? 0,
-                                'stock_quantity'     => $newStock,
-                                'is_base'            => true,
-                            ]);
+                            $keepUnitNames = [$vData['base_unit']];
+
+                            if (isset($vData['conversions'])) {
+                                foreach ($vData['conversions'] as $cData) {
+                                    if (!empty($cData['unit_name'])) {
+                                        $keepUnitNames[] = $cData['unit_name'];
+
+                                        $exists = DB::table('product_units')
+                                            ->where('product_variant_id', $variantId)
+                                            ->where('unit_name', $cData['unit_name'])
+                                            ->where('is_base', false)
+                                            ->first();
+
+                                        if ($exists) {
+                                            DB::table('product_units')->where('id', $exists->id)->update([
+                                                'conversion_rate' => $cData['conversion_rate'] ?? 1,
+                                                'import_price'    => $vData['import_price'] ?? 0,
+                                                'sale_price'      => $cData['sale_price'] ?? 0,
+                                                'updated_at'      => now(),
+                                            ]);
+                                        } else {
+                                            ProductUnit::create([
+                                                'product_variant_id' => $variantId,
+                                                'unit_name'          => $cData['unit_name'],
+                                                'conversion_rate'    => $cData['conversion_rate'] ?? 1,
+                                                'import_price'       => $vData['import_price'] ?? 0,
+                                                'sale_price'         => $cData['sale_price'] ?? 0,
+                                                'stock_quantity'     => 0,
+                                                'is_base'            => false,
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }
+
+                            $oldUnits = DB::table('product_units')
+                                ->where('product_variant_id', $variantId)
+                                ->whereNotIn('unit_name', $keepUnitNames)
+                                ->get();
+
+                            foreach ($oldUnits as $oldUnit) {
+                                $hasOrder = DB::table('order_items')->where('product_unit_id', $oldUnit->id)->exists();
+                                if ($hasOrder) {
+                                    DB::rollBack();
+                                    return redirect()->back()->withErrors(['error' => "Không thể xóa hoặc đổi tên đơn vị tính '{$oldUnit->unit_name}' của biến thể '{$vData['variant_name']}' vì đơn vị này đã phát sinh lịch sử hóa đơn bán hàng!"]);
+                                }
+                                DB::table('product_units')->where('id', $oldUnit->id)->delete();
+                            }
 
                             if ($oldStock != $newStock) {
                                 $diff = $newStock - $oldStock;
@@ -237,22 +283,6 @@ class ProductController extends Controller
                                     'created_at'   => now(),
                                     'updated_at'   => now(),
                                 ]);
-                            }
-
-                            if (isset($vData['conversions'])) {
-                                foreach ($vData['conversions'] as $cData) {
-                                    if (!empty($cData['unit_name'])) {
-                                        ProductUnit::create([
-                                            'product_variant_id' => $variantId,
-                                            'unit_name'          => $cData['unit_name'],
-                                            'conversion_rate'    => $cData['conversion_rate'] ?? 1,
-                                            'import_price'       => $vData['import_price'] ?? 0,
-                                            'sale_price'         => $cData['sale_price'] ?? 0,
-                                            'stock_quantity'     => 0,
-                                            'is_base'            => false,
-                                        ]);
-                                    }
-                                }
                             }
                         }
                     }
@@ -268,7 +298,6 @@ class ProductController extends Controller
                             'barcode'      => $nvData['barcode'] ?? null,
                         ]);
 
-                        /** @var \App\Models\ProductVariant $newVariant */
                         $newVariantId = $newVariant->id;
 
                         ProductUnit::create([
@@ -295,9 +324,13 @@ class ProductController extends Controller
                     }
                 }
             }
-        });
 
-        return redirect()->back()->with('success', 'Cập nhật thông tin sản phẩm và cấu trúc biến thể thành công!');
+            DB::commit();
+            return redirect()->back()->with('success', 'Cập nhật thông tin sản phẩm và cấu trúc biến thể thành công!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors(['error' => 'Đã xảy ra lỗi hệ thống: ' . $e->getMessage()]);
+        }
     }
 
     public function destroy($id)

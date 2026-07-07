@@ -175,9 +175,8 @@
                             <i class="bi bi-chevron-down small chevron-icon"></i>
                         </a>
 
-                        <div class="collapse {{ Request::is('admin/danh-muc') || Request::is('admin/san-pham*') || Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'show' : '' }} ms-3 mt-1" id="menuHangHoa">
+                        <div class="collapse {{ Request::is('admin/danh-muc') || Request::is('admin/san-pham*') ? 'show' : '' }} ms-3 mt-1" id="menuHangHoa">
                             <ul class="nav flex-column border-start text-start ps-2" style="border-color: #dee2e6 !important;">
-
                                 <li class="nav-item">
                                     <a href="/admin/danh-muc" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/danh-muc') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
                                         <i class="bi bi-tags fs-6 text-center me-2" style="width: 20px;"></i>
@@ -191,6 +190,25 @@
                                     </a>
                                 </li>
 
+
+                            </ul>
+                        </div>
+                    </li>
+
+                    <li class="nav-item mb-2">
+                        <a class="nav-link d-flex align-items-center justify-content-between {{ Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'active' : '' }}"
+                            data-bs-toggle="collapse"
+                            href="#menuKho"
+                            role="button"
+                            aria-expanded="{{ Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'true' : 'false' }}">
+                            <div>
+                                <i class="bi bi-box-seam me-3"></i>Quản lý Kho
+                            </div>
+                            <i class="bi bi-chevron-down small chevron-icon"></i>
+                        </a>
+
+                        <div class="collapse {{Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'show' : '' }} ms-3 mt-1" id="menuKho">
+                            <ul class="nav flex-column border-start text-start ps-2" style="border-color: #dee2e6 !important;">
                                 <li class="nav-item mt-1">
                                     <a href="/admin/nhap-kho" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/nhap-kho') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
                                         <i class="bi bi-file-earmark-arrow-down fs-6 text-center me-2" style="width: 20px;"></i> <span>Phiếu nhập kho</span>
@@ -214,6 +232,7 @@
                             </ul>
                         </div>
                     </li>
+
                     @endif
 
                     @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
@@ -225,8 +244,22 @@
                     @endif
                     @if(in_array(Auth::user()->role->name, ['super_admin', 'manager', 'staff']))
                     <li>
-                        <a href="/pos/ban-hang" class="nav-link {{ Request::is('pos/*') ? 'active' : '' }}">
+                        <a href="/admin/pos/ban-hang" class="nav-link {{ Request::is('pos/*') ? 'active' : '' }}">
                             <i class="bi bi-qr-code-scan me-3"></i>Màn hình bán hàng POS
+                        </a>
+                    </li>
+                    @endif
+                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager', 'staff']))
+                    <li>
+                        <a href="/admin/orders" class="nav-link {{ Request::is('admin/orders*') ? 'active' : '' }}">
+                            <i class="bi bi-receipt me-3"></i>Quản lý đơn hàng
+                        </a>
+                    </li>
+                    @endif
+                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
+                    <li>
+                        <a href="/admin/cong-no" class="nav-link {{ Request::is('admin/cong-no*') ? 'active' : '' }}">
+                            <i class="bi bi-wallet2 me-3"></i>Quản lý công nợ
                         </a>
                     </li>
                     @endif
@@ -308,6 +341,15 @@
                         </a>
                     </li>
                     @endif
+
+                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager', 'staff']))
+                    <li>
+                        <a href="/admin/orders" class="nav-link {{ Request::is('admin/orders*') ? 'active' : '' }}">
+                            <i class="bi bi-receipt me-3"></i>Quản lý đơn hàng
+                        </a>
+                    </li>
+                    @endif
+
                 </ul>
 
                 <form action="{{ route('logout') }}" method="POST" class="mt-auto w-100">

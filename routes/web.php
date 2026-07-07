@@ -5,6 +5,9 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\DebtController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -43,6 +46,18 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/nha-cung-cap', [PurchaseController::class, 'indexSupplier'])->name('admin.supplier.index');
 
     Route::get('/admin/lich-su-nhap-kho', [PurchaseController::class, 'history'])->name('admin.purchase.history');
+
+    Route::get('/admin/pos/ban-hang', [PosController::class, 'index'])->name('admin.pos.index');
+    Route::get('/admin/pos/search-products', [PosController::class, 'searchProducts'])->name('admin.pos.search');
+    Route::post('/admin/pos/checkout', [PosController::class, 'checkout'])->name('admin.pos.checkout');
+    Route::post('/admin/pos/add-customer', [PosController::class, 'addCustomer'])->name('admin.pos.add_customer');
+
+    Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orders.index');
+    Route::get('/admin/orders/{id}', [OrderController::class, 'show'])->name('admin.orders.show');
+
+    Route::get('/admin/cong-no', [DebtController::class, 'index'])->name('admin.debts.index');
+    Route::get('/admin/cong-no/{id}/lich-su', [DebtController::class, 'getLogs'])->name('admin.debts.logs');
+    Route::post('/admin/cong-no/thanh-toan', [DebtController::class, 'payDebt'])->name('admin.debts.pay');
     // Route::get('/kho/kiem-hang', function () {
     //     return view('inventory.index');
     // })->middleware('role:super_admin,manager');
