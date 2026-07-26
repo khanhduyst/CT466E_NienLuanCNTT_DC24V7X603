@@ -8,6 +8,9 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\userController;
+use App\Http\Controllers\customerController;
+
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -26,6 +29,21 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/cau-hinh', function () {
         return view('admin.setting');
     })->middleware('role:super_admin');
+
+    Route::get('/admin/nhan-vien', [UserController::class, 'index'])->name('admin.users.index');
+    Route::post('/admin/nhan-vien/store', [UserController::class, 'store'])->name('admin.users.store');
+    Route::post('/admin/nhan-vien/{id}/update', [UserController::class, 'update'])->name('admin.users.update');
+    Route::post('/admin/nhan-vien/{id}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset');
+    Route::post('/admin/nhan-vien/{id}/toggle', [UserController::class, 'toggleStatus'])->name('admin.users.toggle');
+
+    Route::get('/admin/khach-hang', [CustomerController::class, 'index'])->name('admin.customers.index');
+    Route::post('/admin/khach-hang/store', [CustomerController::class, 'store'])->name('admin.customers.store');
+    Route::post('/admin/khach-hang/{id}/update', [CustomerController::class, 'update'])->name('admin.customers.update');
+    Route::post('/admin/khach-hang/{id}/delete', [CustomerController::class, 'destroy'])->name('admin.customers.delete');
+
+    Route::get('/admin/khach-hang/{id}/orders', [CustomerController::class, 'getOrders'])->name('admin.customers.orders');
+    Route::get('/admin/khach-hang/{id}/debts', [CustomerController::class, 'getDebts'])->name('admin.customers.debts');
+    Route::get('/admin/khach-hang/{id}/points', [CustomerController::class, 'getPoints'])->name('admin.customers.points');
 
     Route::get('/admin/danh-muc', [CategoryController::class, 'index'])->name('category.index')->middleware('role:super_admin');
     Route::post('/admin/danh-muc', [CategoryController::class, 'store'])->middleware('role:super_admin');

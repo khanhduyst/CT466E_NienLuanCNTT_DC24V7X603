@@ -8,13 +8,16 @@ use App\Models\ProductVariant;
 use App\Models\ProductUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth; // Đã thêm use Auth chuẩn chỉnh
+use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
         $categories = Category::where('is_deleted', 0)->get();
+        // Lấy danh sách Nhà cung cấp
+        $suppliers = DB::table('suppliers')->orderBy('name', 'asc')->get();
+
         $query = Product::with(['category', 'variants.units']);
 
         if ($request->filled('search')) {
@@ -38,7 +41,13 @@ class ProductController extends Controller
 
         $products = $query->orderBy('id', 'desc')->paginate(5)->withQueryString();
 
-        return view('admin.product', compact('products', 'categories'));
+        // Gắn thêm supplier_id từ lô hàng (batches) mới nhất vào từng sản phẩm
+        foreach ($products as $p) {
+            $latestBatch = DB::table('batches')->where('product_id', $p->id)->orderBy('id', 'desc')->first();
+            $p->supplier_id = $latestBatch ? $latestBatch->supplier_id : null;
+        }
+
+        return view('admin.product', compact('products', 'categories', 'suppliers'));
     }
 
     public function store(Request $request)
@@ -46,6 +55,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'required',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'image' => 'nullable|image|max:2048',
             'variants' => 'required|array|min:1',
             'variants.*.variant_name' => 'required|string|max:255',
@@ -56,6 +66,7 @@ class ProductController extends Controller
         ], [
             'name.required' => 'Tên sản phẩm chính không được để trống.',
             'category_id.required' => 'Vui lòng chọn danh mục chi tiết cho sản phẩm.',
+            'supplier_id.exists' => 'Nhà cung cấp được chọn không hợp lệ.',
             'variants.required' => 'Sản phẩm phải có ít nhất một biến thể.',
             'variants.*.variant_name.required' => 'Tên thuộc tính hoặc dung tích của biến thể không được để trống.',
             'variants.*.base_unit.required' => 'Đơn vị tính gốc không được để trống.',
@@ -64,7 +75,7 @@ class ProductController extends Controller
             'variants.*.stock_quantity.required' => 'Số lượng tồn kho ban đầu không được để trống.',
         ]);
 
-        $userId = Auth::id() ?? 1; // Sử dụng Auth::id() sạch sẽ không bị gạch đỏ
+        $userId = Auth::id() ?? 1;
 
         DB::transaction(function () use ($request, $userId) {
             $imageName = null;
@@ -74,15 +85,16 @@ class ProductController extends Controller
                 $request->file('image')->move(public_path('uploads/products'), $imageName);
             }
 
+            // 1. Tạo sản phẩm chính
             $product = Product::create([
                 'name' => $request->name,
                 'category_id' => $request->category_id,
                 'image' => $imageName,
             ]);
 
-            /** @var \App\Models\Product $product */
-            $productId = $product->id; // Định danh giúp VS Code không gạch đỏ lỗi ID giả
+            $productId = $product->id;
 
+            // Log hoạt động
             DB::table('activity_logs')->insert([
                 'user_id' => $userId,
                 'action' => "Thêm mới sản phẩm chính: {$product->name} (ID: {$productId})",
@@ -92,6 +104,10 @@ class ProductController extends Controller
                 'updated_at' => now(),
             ]);
 
+            $totalInitialStock = 0;
+            $firstImportPrice = 0;
+
+            // 2. Tạo biến thể & đơn vị tính
             foreach ($request->variants as $vData) {
                 $variant = ProductVariant::create([
                     'product_id' => $productId,
@@ -99,8 +115,10 @@ class ProductController extends Controller
                     'barcode' => $vData['barcode'] ?? null,
                 ]);
 
-                /** @var \App\Models\ProductVariant $variant */
                 $variantId = $variant->id;
+                $stockQty = $vData['stock_quantity'] ?? 0;
+                $totalInitialStock += $stockQty;
+                $firstImportPrice = $vData['import_price'] ?? 0;
 
                 ProductUnit::create([
                     'product_variant_id' => $variantId,
@@ -108,16 +126,16 @@ class ProductController extends Controller
                     'conversion_rate' => 1,
                     'import_price' => $vData['import_price'],
                     'sale_price' => $vData['sale_price'],
-                    'stock_quantity' => $vData['stock_quantity'],
+                    'stock_quantity' => $stockQty,
                     'is_base' => true,
                 ]);
 
-                if ($vData['stock_quantity'] > 0) {
+                if ($stockQty > 0) {
                     DB::table('inventory_logs')->insert([
                         'product_id' => $productId,
                         'user_id' => $userId,
                         'change_type' => 'import',
-                        'quantity' => $vData['stock_quantity'],
+                        'quantity' => $stockQty,
                         'note' => "Khởi tạo tồn kho ban đầu cho biến thể [{$vData['variant_name']}]",
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -140,9 +158,23 @@ class ProductController extends Controller
                     }
                 }
             }
+
+            // 3. Nếu chọn Nhà cung cấp, TỰ ĐỘNG TẠO BẢN GHI LÔ HÀNG (batches)
+            if ($request->supplier_id) {
+                DB::table('batches')->insert([
+                    'product_id' => $productId,
+                    'supplier_id' => $request->supplier_id,
+                    'batch_code' => 'BAT_' . date('Ymd') . '_' . time(),
+                    'original_quantity' => $totalInitialStock,
+                    'current_quantity' => $totalInitialStock,
+                    'purchase_price' => $firstImportPrice,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         });
 
-        return redirect()->back()->with('success', 'Thêm sản phẩm đa biến thể thành công!');
+        return redirect()->back()->with('success', 'Thêm sản phẩm thành công!');
     }
 
     public function update(Request $request, $id)
@@ -150,6 +182,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'required',
+            'supplier_id' => 'nullable|exists:suppliers,id',
             'image' => 'nullable|image|max:2048',
         ]);
 
@@ -182,6 +215,28 @@ class ProductController extends Controller
                 'category_id' => $request->category_id,
                 'image' => $product->image,
             ]);
+
+            // Cập nhật hoặc Thêm mới Nhà cung cấp vào lô hàng (batches)
+            if ($request->supplier_id) {
+                $latestBatch = DB::table('batches')->where('product_id', $productId)->orderBy('id', 'desc')->first();
+                if ($latestBatch) {
+                    DB::table('batches')->where('id', $latestBatch->id)->update([
+                        'supplier_id' => $request->supplier_id,
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    DB::table('batches')->insert([
+                        'product_id' => $productId,
+                        'supplier_id' => $request->supplier_id,
+                        'batch_code' => 'BAT_' . date('Ymd') . '_' . time(),
+                        'original_quantity' => 0,
+                        'current_quantity' => 0,
+                        'purchase_price' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
             DB::table('activity_logs')->insert([
                 'user_id' => $userId,
@@ -326,7 +381,7 @@ class ProductController extends Controller
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'Cập nhật thông tin sản phẩm và cấu trúc biến thể thành công!');
+            return redirect()->back()->with('success', 'Cập nhật thông tin sản phẩm thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->withErrors(['error' => 'Đã xảy ra lỗi hệ thống: ' . $e->getMessage()]);
@@ -338,7 +393,6 @@ class ProductController extends Controller
         $userId = Auth::id() ?? 1;
         $product = Product::findOrFail($id);
 
-        /** @var \App\Models\Product $product */
         $productId = $product->id;
 
         DB::transaction(function () use ($product, $productId, $userId) {

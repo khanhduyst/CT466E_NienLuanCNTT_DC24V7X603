@@ -99,11 +99,11 @@
                             <td class="text-end fw-bold text-dark">{{ number_format($order->final_amount, 0, ',', '.') }}đ</td>
                             <td class="text-center">
                                 @if($order->payment_method === 'cash')
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Tiền mặt</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Tiền mặt</span>
                                 @elseif($order->payment_method === 'qr_code')
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle">Chuyển khoản</span>
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">Chuyển khoản</span>
                                 @else
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Ghi nợ</span>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Ghi nợ</span>
                                 @endif
                             </td>
                             <td class="text-end pe-3">
@@ -123,8 +123,10 @@
             </div>
         </div>
         @if($orders->hasPages())
-        <div class="card-footer bg-white pt-3">
-            {{ $orders->links() }}
+        <div class="card-footer bg-white pt-3 d-flex justify-content-center">
+            <div class="w-100 [&_nav]:d-flex [&_nav]:justify-content-center [&_nav_p]:d-none [&_nav_div:first-child]:d-none">
+                {{ $orders->links('pagination::bootstrap-5') }}
+            </div>
         </div>
         @endif
     </div>
@@ -217,10 +219,22 @@
         </div>
         <div style="margin-bottom: 10px; font-size: 11px;">
             <table style="width: 100%;">
-                <tr><td>Mã HĐ:</td><td style="text-align: right; font-weight: bold;" id="pa-invoice-number">---------</td></tr>
-                <tr><td>Ngày:</td><td style="text-align: right;" id="pa-date">--/--/---- --:--</td></tr>
-                <tr><td>Khách hàng:</td><td style="text-align: right;" id="pa-customer-name">-</td></tr>
-                <tr><td>Thu ngân:</td><td style="text-align: right;" id="pa-user-name">-</td></tr>
+                <tr>
+                    <td>Mã HĐ:</td>
+                    <td style="text-align: right; font-weight: bold;" id="pa-invoice-number">---------</td>
+                </tr>
+                <tr>
+                    <td>Ngày:</td>
+                    <td style="text-align: right;" id="pa-date">--/--/---- --:--</td>
+                </tr>
+                <tr>
+                    <td>Khách hàng:</td>
+                    <td style="text-align: right;" id="pa-customer-name">-</td>
+                </tr>
+                <tr>
+                    <td>Thu ngân:</td>
+                    <td style="text-align: right;" id="pa-user-name">-</td>
+                </tr>
             </table>
             <div style="border-top: 1px dashed #000; margin-top: 10px;"></div>
         </div>
@@ -236,12 +250,30 @@
         </table>
         <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; font-size: 11px;">
             <table style="width: 100%;">
-                <tr><td>Tổng tiền hàng:</td><td style="text-align: right;" id="pa-total-amount">0đ</td></tr>
-                <tr><td>Chiết khấu:</td><td style="text-align: right;" id="pa-discount">0đ</td></tr>
-                <tr style="font-weight: bold; font-size: 13px;"><td>Khách cần trả:</td><td style="text-align: right;" id="pa-final-amount">0đ</td></tr>
-                <tr><td>Khách đưa:</td><td style="text-align: right;" id="pa-paid">0đ</td></tr>
-                <tr><td>Tiền thừa trả:</td><td style="text-align: right;" id="pa-change">0đ</td></tr>
-                <tr><td>Hình thức:</td><td style="text-align: right; font-weight: bold;" id="pa-method">-</td></tr>
+                <tr>
+                    <td>Tổng tiền hàng:</td>
+                    <td style="text-align: right;" id="pa-total-amount">0đ</td>
+                </tr>
+                <tr>
+                    <td>Chiết khấu:</td>
+                    <td style="text-align: right;" id="pa-discount">0đ</td>
+                </tr>
+                <tr style="font-weight: bold; font-size: 13px;">
+                    <td>Khách cần trả:</td>
+                    <td style="text-align: right;" id="pa-final-amount">0đ</td>
+                </tr>
+                <tr>
+                    <td>Khách đưa:</td>
+                    <td style="text-align: right;" id="pa-paid">0đ</td>
+                </tr>
+                <tr>
+                    <td>Tiền thừa trả:</td>
+                    <td style="text-align: right;" id="pa-change">0đ</td>
+                </tr>
+                <tr>
+                    <td>Hình thức:</td>
+                    <td style="text-align: right; font-weight: bold;" id="pa-method">-</td>
+                </tr>
             </table>
             <div style="border-top: 1px dashed #000; margin-top: 10px;"></div>
         </div>
@@ -253,76 +285,76 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-$(document).on('click', '.btn-view-detail', function() {
-    let id = $(this).data('id');
-    $.get('/admin/orders/' + id, function(res) {
-        if (res.success) {
-            $('#md-invoice-num').text(res.order.invoice_number);
-            $('#md-cust-name').text(res.order.customer_name ? res.order.customer_name : 'Khách vãng lai');
-            $('#md-user-name').text(res.order.user_name);
-            let dateObj = new Date(res.order.created_at);
-            $('#md-date').text(dateObj.toLocaleString('vi-VN'));
-            let methodText = '<span class="badge bg-success">Tiền mặt</span>';
-            if (res.order.payment_method === 'qr_code') methodText = '<span class="badge bg-info">Chuyển khoản</span>';
-            if (res.order.payment_method === 'debt') methodText = '<span class="badge bg-danger">Ghi nợ</span>';
-            $('#md-method').html(methodText);
-            $('#md-total-amount').text(parseFloat(res.order.total_amount).toLocaleString('vi-VN') + 'đ');
-            $('#md-discount').text(parseFloat(res.order.discount_amount).toLocaleString('vi-VN') + 'đ');
-            $('#md-final-amount').text(parseFloat(res.order.final_amount).toLocaleString('vi-VN') + 'đ');
-            $('#md-paid').text(parseFloat(res.order.paid_amount).toLocaleString('vi-VN') + 'đ');
-            $('#md-change').text(parseFloat(res.order.change_amount).toLocaleString('vi-VN') + 'đ');
-            let html = '';
-            res.items.forEach(item => {
-                html += `<tr><td class="ps-3 fw-semibold text-dark">${item.product_name}</td><td class="text-center"><span class="badge bg-secondary-subtle text-secondary border">${item.unit_name}</span></td><td class="text-center fw-bold">${item.quantity}</td><td class="text-end">${parseFloat(item.sale_price).toLocaleString('vi-VN')}đ</td><td class="text-end pe-3 fw-bold text-primary">${parseFloat(item.subtotal).toLocaleString('vi-VN')}đ</td></tr>`;
-            });
-            $('#md-items-body').html(html);
-            $('#orderDetailModal').modal('show');
-        }
-    });
-});
-
-$(document).on('click', '.btn-print-again', function() {
-    let id = $(this).data('id');
-    $.get('/admin/orders/' + id, function(res) {
-        if (res.success) {
-            $('#pa-invoice-number').text(res.order.invoice_number);
-            let dateObj = new Date(res.order.created_at);
-            $('#pa-date').text(dateObj.toLocaleString('vi-VN'));
-            $('#pa-customer-name').text(res.order.customer_name ? res.order.customer_name : 'Khách vãng lai');
-            $('#pa-user-name').text(res.order.user_name);
-            $('#pa-total-amount').text(parseFloat(res.order.total_amount).toLocaleString('vi-VN') + 'đ');
-            $('#pa-discount').text(parseFloat(res.order.discount_amount).toLocaleString('vi-VN') + 'đ');
-            $('#pa-final-amount').text(parseFloat(res.order.final_amount).toLocaleString('vi-VN') + 'đ');
-            $('#pa-paid').text(parseFloat(res.order.paid_amount).toLocaleString('vi-VN') + 'đ');
-            $('#pa-change').text(parseFloat(res.order.change_amount).toLocaleString('vi-VN') + 'đ');
-            let methodText = 'Tiền mặt';
-            if(res.order.payment_method === 'qr_code') methodText = 'Chuyển khoản';
-            if(res.order.payment_method === 'debt') methodText = 'Ghi nợ';
-            $('#pa-method').text(methodText);
-            let html = '';
-            res.items.forEach(item => {
-                html += `<tr style="border-bottom: 1px dotted #eee;"><td style="padding: 5px 0;">${item.product_name} (${item.unit_name})</td><td style="text-align: center; padding: 5px 0;">${item.quantity}</td><td style="text-align: right; padding: 5px 0;">${parseFloat(item.subtotal).toLocaleString('vi-VN')}đ</td></tr>`;
-            });
-            $('#pa-items-body').html(html);
-            let iframe = document.getElementById('print-iframe-again');
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = 'print-iframe-again';
-                iframe.style.position = 'absolute';
-                iframe.style.top = '-9999px';
-                iframe.style.left = '-9999px';
-                document.body.appendChild(iframe);
+    $(document).on('click', '.btn-view-detail', function() {
+        let id = $(this).data('id');
+        $.get('/admin/orders/' + id, function(res) {
+            if (res.success) {
+                $('#md-invoice-num').text(res.order.invoice_number);
+                $('#md-cust-name').text(res.order.customer_name ? res.order.customer_name : 'Khách vãng lai');
+                $('#md-user-name').text(res.order.user_name);
+                let dateObj = new Date(res.order.created_at);
+                $('#md-date').text(dateObj.toLocaleString('vi-VN'));
+                let methodText = '<span class="badge bg-success">Tiền mặt</span>';
+                if (res.order.payment_method === 'qr_code') methodText = '<span class="badge bg-info">Chuyển khoản</span>';
+                if (res.order.payment_method === 'debt') methodText = '<span class="badge bg-danger">Ghi nợ</span>';
+                $('#md-method').html(methodText);
+                $('#md-total-amount').text(parseFloat(res.order.total_amount).toLocaleString('vi-VN') + 'đ');
+                $('#md-discount').text(parseFloat(res.order.discount_amount).toLocaleString('vi-VN') + 'đ');
+                $('#md-final-amount').text(parseFloat(res.order.final_amount).toLocaleString('vi-VN') + 'đ');
+                $('#md-paid').text(parseFloat(res.order.paid_amount).toLocaleString('vi-VN') + 'đ');
+                $('#md-change').text(parseFloat(res.order.change_amount).toLocaleString('vi-VN') + 'đ');
+                let html = '';
+                res.items.forEach(item => {
+                    html += `<tr><td class="ps-3 fw-semibold text-dark">${item.product_name}</td><td class="text-center"><span class="badge bg-secondary-subtle text-secondary border">${item.unit_name}</span></td><td class="text-center fw-bold">${item.quantity}</td><td class="text-end">${parseFloat(item.sale_price).toLocaleString('vi-VN')}đ</td><td class="text-end pe-3 fw-bold text-primary">${parseFloat(item.subtotal).toLocaleString('vi-VN')}đ</td></tr>`;
+                });
+                $('#md-items-body').html(html);
+                $('#orderDetailModal').modal('show');
             }
-            let doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write('<html><head><title>Print Invoice Again</title></head><body style="margin:0;">' + $('#print-section-again').html() + '</body></html>');
-            doc.close();
-            setTimeout(function() {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            }, 500);
-        }
+        });
     });
-});
+
+    $(document).on('click', '.btn-print-again', function() {
+        let id = $(this).data('id');
+        $.get('/admin/orders/' + id, function(res) {
+            if (res.success) {
+                $('#pa-invoice-number').text(res.order.invoice_number);
+                let dateObj = new Date(res.order.created_at);
+                $('#pa-date').text(dateObj.toLocaleString('vi-VN'));
+                $('#pa-customer-name').text(res.order.customer_name ? res.order.customer_name : 'Khách vãng lai');
+                $('#pa-user-name').text(res.order.user_name);
+                $('#pa-total-amount').text(parseFloat(res.order.total_amount).toLocaleString('vi-VN') + 'đ');
+                $('#pa-discount').text(parseFloat(res.order.discount_amount).toLocaleString('vi-VN') + 'đ');
+                $('#pa-final-amount').text(parseFloat(res.order.final_amount).toLocaleString('vi-VN') + 'đ');
+                $('#pa-paid').text(parseFloat(res.order.paid_amount).toLocaleString('vi-VN') + 'đ');
+                $('#pa-change').text(parseFloat(res.order.change_amount).toLocaleString('vi-VN') + 'đ');
+                let methodText = 'Tiền mặt';
+                if (res.order.payment_method === 'qr_code') methodText = 'Chuyển khoản';
+                if (res.order.payment_method === 'debt') methodText = 'Ghi nợ';
+                $('#pa-method').text(methodText);
+                let html = '';
+                res.items.forEach(item => {
+                    html += `<tr style="border-bottom: 1px dotted #eee;"><td style="padding: 5px 0;">${item.product_name} (${item.unit_name})</td><td style="text-align: center; padding: 5px 0;">${item.quantity}</td><td style="text-align: right; padding: 5px 0;">${parseFloat(item.subtotal).toLocaleString('vi-VN')}đ</td></tr>`;
+                });
+                $('#pa-items-body').html(html);
+                let iframe = document.getElementById('print-iframe-again');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'print-iframe-again';
+                    iframe.style.position = 'absolute';
+                    iframe.style.top = '-9999px';
+                    iframe.style.left = '-9999px';
+                    document.body.appendChild(iframe);
+                }
+                let doc = iframe.contentDocument || iframe.contentWindow.document;
+                doc.open();
+                doc.write('<html><head><title>Print Invoice Again</title></head><body style="margin:0;">' + $('#print-section-again').html() + '</body></html>');
+                doc.close();
+                setTimeout(function() {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                }, 500);
+            }
+        });
+    });
 </script>
 @endsection

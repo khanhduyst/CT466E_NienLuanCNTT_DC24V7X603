@@ -122,7 +122,7 @@
                                                                     @if(!$unit->is_base)<small class='text-muted'>(x{{ $unit->conversion_rate }})</small>
                                                                     @else<span class='text-info fw-bold' style='font-size: 10px;'> [Gốc-Kho: {{ $unit->stock_quantity }}]</span>@endif
                                                                 </div>
-                                                               @endforeach
+                                                            @endforeach
                                                         </div>
                                                     </div>
                                                 @endforeach
@@ -137,6 +137,7 @@
                                 <button type="button" class="btn btn-sm btn-outline-primary border-0 btn-edit-product"
                                     data-id="{{ $product->id }}"
                                     data-name="{{ $product->name }}"
+                                    data-supplier-id="{{ $product->supplier_id }}"
                                     data-parent-id="{{ $product->category->parent_id ?? $product->category_id }}"
                                     data-child-id="{{ $product->category->parent_id ? $product->category_id : '' }}"
                                     data-image="{{ $product->image ? asset('uploads/products/' . $product->image) : '' }}"
@@ -197,6 +198,23 @@
                                 <label class="form-label small fw-semibold">Tên sản phẩm chính</label>
                                 <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" placeholder="Ví dụ: Nước mắm Knorr 15 độ đạm" required>
                                 @error('name')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Nhà cung cấp</label>
+                                <select class="form-select @error('supplier_id') is-invalid @enderror" name="supplier_id">
+                                    <option value="">-- Chọn nhà cung cấp (Tùy chọn) --</option>
+                                    @if(isset($suppliers))
+                                    @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                        🏢 {{ $supplier->name }}
+                                    </option>
+                                    @endforeach
+                                    @endif
+                                </select>
+                                @error('supplier_id')
                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
@@ -280,6 +298,20 @@
                                 <input type="text" class="form-control" name="name" id="edit-name" required>
                             </div>
 
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold">Nhà cung cấp</label>
+                                <select class="form-select" name="supplier_id" id="edit-supplier-select">
+                                    <option value="">-- Chọn nhà cung cấp (Tùy chọn) --</option>
+                                    @if(isset($suppliers))
+                                    @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}">
+                                        🏢 {{ $supplier->name }}
+                                    </option>
+                                    @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-semibold">Danh mục chính (Cha)</label>
@@ -344,9 +376,6 @@
     const allChildCategories = JSON.parse('{!! json_encode($categories->where("parent_id", "!=", null)->values()) !!}');
     let variantIndex = 0;
     let editNewVariantIndex = 0;
-
-
-
 
     function createVariantRow(oldData = null) {
         const variantsContainer = document.getElementById('variants-container');
@@ -482,9 +511,6 @@
         variantIndex++;
     }
 
-
-
-
     function createNewVariantRowForEdit() {
         const container = document.getElementById('edit-new-variants-container');
         if (!container) return;
@@ -573,9 +599,6 @@
         editNewVariantIndex++;
     }
 
-
-
-
     function filterEditChildCategories(parentId, selectedChildId = '') {
         const editChildSelect = document.getElementById('edit-child-category-select');
         if (!editChildSelect) return;
@@ -647,9 +670,6 @@
             });
         }
 
-
-
-
         if (btnAddVariantEdit) {
             btnAddVariantEdit.addEventListener('click', function() {
                 createNewVariantRowForEdit();
@@ -666,7 +686,6 @@
                 }
             });
         }
-
 
         if (editVariantsContainer) {
             editVariantsContainer.addEventListener('click', function(e) {
@@ -703,11 +722,11 @@
             });
         }
 
-
         document.querySelectorAll('.btn-edit-product').forEach(button => {
             button.addEventListener('click', function() {
                 const id = this.getAttribute('data-id');
                 const name = this.getAttribute('data-name');
+                const supplierId = this.getAttribute('data-supplier-id');
                 const parentId = this.getAttribute('data-parent-id');
                 const childId = this.getAttribute('data-child-id');
                 const imageSrc = this.getAttribute('data-image');
@@ -716,6 +735,11 @@
                 document.getElementById('form-edit-product').setAttribute('action', '/admin/san-pham/' + id);
                 document.getElementById('edit-name').value = name;
                 document.getElementById('remove-current-image').value = "0";
+
+                const editSupplierSelect = document.getElementById('edit-supplier-select');
+                if (editSupplierSelect) {
+                    editSupplierSelect.value = supplierId || '';
+                }
 
                 const editParentSelect = document.getElementById('edit-parent-category-select');
                 if (editParentSelect) {
@@ -827,7 +851,6 @@
                 editModal.show();
             });
         });
-
 
         const oldParentId = formFormEl && formFormEl.getAttribute('data-old-parent');
         const oldChildId = formFormEl && formFormEl.getAttribute('data-old-child');

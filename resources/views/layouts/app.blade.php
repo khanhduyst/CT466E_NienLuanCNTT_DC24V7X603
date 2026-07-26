@@ -263,6 +263,18 @@
                         </a>
                     </li>
                     @endif
+                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
+                    <li>
+                        <a href="/admin/nhan-vien" class="nav-link {{ Request::is('admin/nhan-vien*') ? 'active' : '' }}">
+                            <i class="bi bi-people me-3"></i>Quản lý nhân viên
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/khach-hang" class="nav-link {{ Request::is('admin/khach-hang*') ? 'active' : '' }}">
+                            <i class="bi bi-person-lines-fill me-3"></i>Quản lý khách hàng
+                        </a>
+                    </li>
+                    @endif
                 </ul>
             </div>
 

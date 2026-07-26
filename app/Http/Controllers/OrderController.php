@@ -47,7 +47,7 @@ class OrderController extends Controller
             'users.name as user_name'
         )
             ->orderBy('orders.created_at', 'desc')
-            ->paginate(10)
+            ->paginate(4)
             ->withQueryString();
 
         return view('orders.index', compact('orders', 'stats'));
