@@ -69,6 +69,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/pos/search-products', [PosController::class, 'searchProducts'])->name('admin.pos.search');
     Route::post('/admin/pos/checkout', [PosController::class, 'checkout'])->name('admin.pos.checkout');
     Route::post('/admin/pos/add-customer', [PosController::class, 'addCustomer'])->name('admin.pos.add_customer');
+    Route::post('/admin/pos/quick-customer', [PosController::class, 'quickStoreCustomer'])->name('admin.pos.quick_customer');
 
     Route::get('/admin/orders', [OrderController::class, 'index'])->name('admin.orders.index');
     Route::get('/admin/orders/{id}', [OrderController::class, 'show'])->name('admin.orders.show');

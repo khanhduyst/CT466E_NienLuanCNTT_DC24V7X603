@@ -1,120 +1,186 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid py-3">
-    <div class="row">
-        <div class="col-md-7">
-            <div class="card shadow-sm border-0 mb-3">
-                <div class="card-body">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-                        <input type="text" id="search-input" class="form-control border-start-0 ps-0" placeholder="Nhập tên sản phẩm hoặc mã vạch cần tìm...">
+<style>
+    .pos-card-product {
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 1px solid #e9ecef;
+    }
+    .pos-card-product:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+        border-color: #0d6efd;
+    }
+    .cart-table-wrapper {
+        max-height: calc(100vh - 430px);
+        min-height: 250px;
+        overflow-y: auto;
+    }
+    .category-badge-btn {
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+    .customer-suggestion-item:hover {
+        background-color: #e9ecef;
+        cursor: pointer;
+    }
+</style>
+
+<div class="container-fluid py-2 bg-light" style="min-height: 90vh;">
+    <div class="row g-3">
+        <div class="col-lg-7 col-xl-8">
+            <div class="card border-0 shadow-sm mb-3 rounded-4">
+                <div class="card-body p-3">
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 text-primary"><i class="bi bi-search fs-5"></i></span>
+                                <input type="text" id="search-product" class="form-control border-start-0 ps-0 fw-semibold" placeholder="Tìm tên sản phẩm hoặc Quét mã vạch (Barcode)..." autofocus>
+                            </div>
+                        </div>
                     </div>
-                    <div id="search-results" class="list-group mt-2 position-absolute z-3 shadow" style="display:none; max-height:300px; overflow-y:auto; right: 0; left: 12px; width: calc(100% - 24px) !important;"></div>
+                    <div class="d-flex gap-1 overflow-x-auto pb-1" id="category-filter-list">
+                        <button class="btn btn-sm btn-primary category-badge-btn active fw-bold px-3" data-category-id="all">Tất cả</button>
+                        @foreach($categories as $cate)
+                        <button class="btn btn-sm btn-outline-secondary category-badge-btn fw-semibold" data-category-id="{{ $cate->id }}">{{ $cate->name }}</button>
+                        @endforeach
+                    </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-secondary text-white fw-semibold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-stars me-2"></i> Danh sách sản phẩm đã chọn</span>
-                    <span class="badge bg-light text-secondary" id="cart-count">0 món</span>
-                </div>
-                <div class="card-body p-0">
-                    <div style="min-height: 350px; max-height: 500px; overflow-y: auto;">
-                        <table class="table table-align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">Sản phẩm</th>
-                                    <th>ĐVT</th>
-                                    <th style="width: 120px;" class="text-center">Số lượng</th>
-                                    <th>Giá bán</th>
-                                    <th>Thành tiền</th>
-                                    <th class="text-end pe-3">Xóa</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cart-table-body">
-                                <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted">
-                                        <i class="bi bi-cart-x fs-2 d-block mb-2"></i> Chưa có sản phẩm nào trong giỏ
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+            <div class="row g-3" id="pos-product-grid" style="max-height: calc(100vh - 220px); overflow-y: auto;">
+                @foreach($products as $p)
+                    @php
+                        $firstVariant = $p->variants->first();
+                        $baseUnit = $firstVariant ? $firstVariant->units->where('is_base', 1)->first() : null;
+                        $allBarcodes = $p->variants->pluck('barcode')->filter()->implode(' ');
+                        $allVariantNames = $p->variants->pluck('variant_name')->implode(' ');
+                    @endphp
+                    <div class="col-6 col-sm-4 col-md-3 pos-product-item" 
+                         data-name="{{ strtolower($p->name . ' ' . $allVariantNames . ' ' . $allBarcodes) }}"
+                         data-category="{{ $p->category_id }}">
+                        <div class="card h-100 pos-card-product rounded-4 bg-white p-2 btn-select-product" 
+                             data-product-id="{{ $p->id }}"
+                             data-product-name="{{ $p->name }}"
+                             data-variants='@json($p->variants->load("units"))'>
+                            <div class="position-relative text-center mb-2">
+                                @if($p->image && file_exists(public_path('uploads/products/' . $p->image)))
+                                    <img src="{{ asset('uploads/products/' . $p->image) }}" class="rounded-3 object-fit-cover" style="width: 100%; height: 100px;">
+                                @else
+                                    <div class="bg-light rounded-3 d-flex align-items-center justify-content-center text-muted" style="height: 100px;">
+                                        <i class="bi bi-box-seam fs-1"></i>
+                                    </div>
+                                @endif
+                                <span class="position-absolute top-0 end-0 badge bg-primary opacity-90 m-1 rounded-pill" style="font-size: 10px;">
+                                    {{ $p->variants->count() }} biến thể
+                                </span>
+                            </div>
+                            <div class="fw-bold text-dark text-truncate small mb-1">{{ $p->name }}</div>
+                            <div class="text-secondary small mb-1" style="font-size: 11px;">
+                                {{ $firstVariant->variant_name ?? '' }}
+                            </div>
+                            <div class="fw-bold text-danger fs-6">
+                                {{ number_format($baseUnit->sale_price ?? 0) }}đ
+                            </div>
+                        </div>
                     </div>
-                </div>
+                @endforeach
             </div>
         </div>
 
-        <div class="col-md-5">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-primary text-white fw-semibold">
-                    <i class="bi bi-person-lines-fill me-2"></i> Thông tin thanh toán
-                </div>
-                <div class="card-body bg-light d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="card border-0 bg-white p-3 mb-3 shadow-sm">
-                            <div class="mb-2">
-                                <label class="form-label small fw-semibold text-primary">Khách hàng:</label>
-                                <div class="input-group">
-                                    <input type="text" id="customer-search" class="form-control form-control-sm" placeholder="Tìm tên, SĐT, mã khách hàng..." value="Khách vãng lai" autocomplete="off">
-                                    <input type="hidden" id="customer_id" value="">
-                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addCustomerModal"><i class="bi bi-plus-lg"></i></button>
-                                </div>
-                                <div id="customer-search-results" class="list-group position-absolute shadow z-3" style="display:none; max-height:200px; overflow-y:auto; width: calc(100% - 48px);"></div>
-                            </div>
-                            <div class="row g-2 small border-top pt-2 mt-1">
-                                <div class="col-6 text-muted">Số điện thoại:</div>
-                                <div class="col-6 fw-semibold text-dark text-end" id="lbl-cust-phone">Không có</div>
-                                <div class="col-6 text-muted">Mã khách hàng:</div>
-                                <div class="col-6 fw-semibold text-dark text-end" id="lbl-cust-barcode">Không có</div>
-                                <div class="col-6 text-muted">Nợ cũ hiện tại:</div>
-                                <div class="col-6 fw-bold text-danger text-end" id="lbl-cust-debt">0đ</div>
-                            </div>
+        <div class="col-lg-5 col-xl-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 d-flex flex-column">
+                <div class="card-header bg-white border-bottom-0 pt-3 px-3">
+                    <div class="position-relative mb-2">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white text-secondary border-end-0"><i class="bi bi-person-search"></i></span>
+                            <input type="text" id="input-search-customer" class="form-control border-start-0 ps-0 fw-semibold" placeholder="Gõ tên hoặc số điện thoại..." autocomplete="off">
+                            <button class="btn btn-outline-danger btn-sm d-none" type="button" id="btn-clear-customer" title="Bỏ chọn"><i class="bi bi-x-lg"></i></button>
+                            <button class="btn btn-primary fw-bold px-3" type="button" data-bs-toggle="modal" data-bs-target="#quickCustomerModal" title="Thêm khách hàng mới">
+                                <i class="bi bi-person-plus-fill me-1"></i> Thêm mới
+                            </button>
                         </div>
-
-                        <hr>
-
-                        <div class="d-flex justify-content-between mb-3 fs-5">
-                            <span>Tổng tiền hàng:</span>
-                            <span id="txt-total-amount" class="fw-bold text-dark">0đ</span>
-                        </div>
-
-                        <div class="mb-3 row align-items-center">
-                            <label class="col-sm-5 col-form-label">Chiết khấu (đ):</label>
-                            <div class="col-sm-7">
-                                <input type="number" id="input-discount" class="form-control text-end fw-semibold fs-5 text-danger" value="0" min="0">
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between mb-3 fs-4 border-top pt-2">
-                            <span class="fw-bold text-danger">Khách cần trả:</span>
-                            <span id="txt-final-amount" class="fw-bold text-danger">0đ</span>
-                        </div>
-
-                        <div class="mb-3 row align-items-center">
-                            <label class="col-sm-5 col-form-label">Khách đưa (đ):</label>
-                            <div class="col-sm-7">
-                                <input type="number" id="input-paid" class="form-control text-end fw-semibold fs-5 text-success" value="0" min="0">
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between mb-4 fs-5">
-                            <span>Tiền thừa trả khách:</span>
-                            <span id="txt-change-amount" class="text-success fw-bold">0đ</span>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label small fw-semibold">Hình thức thanh toán</label>
-                            <select id="payment_method" class="form-select">
-                                <option value="cash">💵 Tiền mặt (Cash)</option>
-                                <option value="qr_code">📲 Chuyển khoản / QR Code</option>
-                                <option value="debt">📝 Ghi nợ (Debt)</option>
-                            </select>
+                        <input type="hidden" id="selected-customer-id" value="">
+                        
+                        <div class="dropdown-menu w-100 shadow border-0 p-0 mt-1" id="customer-suggestions-box" style="display: none; max-height: 250px; overflow-y: auto; z-index: 1050;">
                         </div>
                     </div>
 
-                    <button type="button" id="btn-checkout" class="btn btn-primary w-100 py-3 fw-bold fs-5 shadow-sm mt-3">
-                        <i class="bi bi-check2-circle me-2"></i> HOÀN THÀNH THANH TOÁN
+                    <div id="customer-info-box" class="d-none bg-primary-subtle p-2 rounded-3 text-primary d-flex justify-content-between small fw-bold">
+                        <span><i class="bi bi-star-fill text-warning me-1"></i>Điểm: <span id="cust-points">0</span> pt</span>
+                        <span><i class="bi bi-wallet2 text-danger me-1"></i>Nợ: <span id="cust-debt">0</span> đ</span>
+                    </div>
+                </div>
+
+                <div class="card-body p-0 cart-table-wrapper">
+                    <table class="table table-hover align-middle mb-0" id="cart-table">
+                        <thead class="table-light small">
+                            <tr>
+                                <th class="ps-3">Sản phẩm</th>
+                                <th style="width: 80px;">ĐVT</th>
+                                <th style="width: 90px;">SL</th>
+                                <th class="text-end pe-3">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-body">
+                            <tr id="empty-cart-msg">
+                                <td colspan="4" class="text-center py-5 text-muted small">
+                                    <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary"></i>Chưa có sản phẩm nào trong giỏ
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-footer bg-white border-top p-3 mt-auto">
+                    <div class="d-flex justify-content-between mb-2 small fw-semibold">
+                        <span class="text-muted">Tổng tiền hàng:</span>
+                        <span class="fw-bold text-dark" id="txt-subtotal">0 đ</span>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <input type="number" id="input-discount" class="form-control form-control-sm" placeholder="Giảm giá (đ)" min="0">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch bg-light p-2 rounded-3 border ps-5">
+                                <input class="form-check-input ms-n4 style-pointer" type="checkbox" id="chk-use-points" disabled>
+                                <label class="form-check-input-label fw-bold small text-dark d-flex justify-content-between w-100 pe-2 style-pointer" for="chk-use-points">
+                                    <span><i class="bi bi-stars text-warning me-1"></i>Đổi điểm tích lũy</span>
+                                    <span class="text-danger fw-bold" id="lbl-point-discount-val">-0 đ</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="fw-bold text-dark">KHÁCH PHẢI TRẢ:</span>
+                        <span class="fw-bold text-danger fs-5" id="txt-final-total">0 đ</span>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-bold text-secondary mb-1">Hình thức thanh toán</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="payment_method" id="pay-cash" value="cash" checked>
+                            <label class="btn btn-outline-primary btn-sm fw-bold py-2" for="pay-cash"><i class="bi bi-cash-stack me-1"></i>Tiền mặt</label>
+
+                            <input type="radio" class="btn-check" name="payment_method" id="pay-transfer" value="transfer">
+                            <label class="btn btn-outline-primary btn-sm fw-bold py-2" for="pay-transfer"><i class="bi bi-qr-code-scan me-1"></i>Chuyển khoản</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <input type="number" id="input-paid-amount" class="form-control form-control-lg fw-bold text-success" placeholder="Tiền khách đưa (đ)">
+                        <div class="d-flex justify-content-between mt-2 small fw-bold" id="box-change-debt">
+                            <span class="text-muted" id="label-change-debt">Tiền thừa trả khách:</span>
+                            <span class="text-primary fs-6" id="txt-change-amount">0 đ</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success btn-lg w-100 fw-bold py-2 rounded-3 shadow-sm" id="btn-submit-order" onclick="submitOrder()">
+                        <i class="bi bi-printer-fill me-2"></i>THANH TOÁN & IN HÓA ĐƠN
                     </button>
                 </div>
             </div>
@@ -122,479 +188,489 @@
     </div>
 </div>
 
-<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="productOptionsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-semibold"><i class="bi bi-person-plus me-2"></i> Thêm khách hàng mới</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header bg-dark text-white py-3">
+                <h6 class="modal-title fw-bold" id="productModalTitle">Tên sản phẩm</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body bg-light">
-                <form id="form-add-customer">
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Tên khách hàng <span class="text-danger">*</span></label>
-                        <input type="text" id="cust-new-name" class="form-control" required placeholder="Nhập tên khách hàng...">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Số điện thoại <span class="text-danger">*</span></label>
-                        <input type="text" id="cust-new-phone" class="form-control" required placeholder="Nhập số điện thoại...">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Mã khách hàng / Barcode (Tùy chọn)</label>
-                        <input type="text" id="cust-new-barcode" class="form-control" placeholder="Để trống hệ thống tự sinh mã...">
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer bg-white">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
-                <button type="button" id="btn-save-customer" class="btn btn-sm btn-primary">Lưu khách hàng</button>
+            <div class="modal-body p-3">
+                <label class="form-label small fw-bold text-muted mb-2"><i class="bi bi-layers me-1"></i>1. Chọn biến thể / Thuộc tính:</label>
+                <div class="d-flex flex-wrap gap-2 mb-3" id="variant-btn-group"></div>
+
+                <hr class="my-2">
+
+                <label class="form-label small fw-bold text-muted mb-2"><i class="bi bi-box-seam me-1"></i>2. Chọn đơn vị tính (Lon / Lốc / Thùng...):</label>
+                <div class="d-flex flex-column gap-2" id="unit-btn-group"></div>
             </div>
         </div>
     </div>
 </div>
 
-<div id="print-section" style="display: none;">
-    <div style="width: 80mm; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; padding: 5mm; line-height: 1.4;">
-        <div style="text-align: center; margin-bottom: 10px;">
-            <h2 style="margin: 0; font-size: 16px; font-weight: bold;">SMART GROCER</h2>
-            <p style="margin: 3px 0; font-size: 11px;">Hệ thống POS thông minh</p>
-            <p style="margin: 3px 0; font-size: 10px;">ĐC: Cần Thơ, Việt Nam</p>
-            <p style="margin: 3px 0; font-size: 10px;">SĐT: 0123.456.789</p>
-            <div style="border-top: 1px dashed #000; margin-top: 10px;"></div>
-        </div>
-
-        <div style="margin-bottom: 10px; font-size: 11px;">
-            <table style="width: 100%;">
-                <tr>
-                    <td>Mã HĐ:</td>
-                    <td style="text-align: right; font-weight: bold;" id="p-invoice-number">---------</td>
-                </tr>
-                <tr>
-                    <td>Ngày:</td>
-                    <td style="text-align: right;" id="p-date">--/--/---- --:--</td>
-                </tr>
-                <tr>
-                    <td>Khách hàng:</td>
-                    <td style="text-align: right;" id="p-customer-name">Khách vãng lai</td>
-                </tr>
-                <tr>
-                    <td>Thu ngân:</td>
-                    <td style="text-align: right;">{{ Auth::user()->name }}</td>
-                </tr>
-            </table>
-            <div style="border-top: 1px dashed #000; margin-top: 10px;"></div>
-        </div>
-
-        <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 10px;">
-            <thead>
-                <tr style="border-bottom: 1px dashed #000;">
-                    <th style="text-align: left; padding-bottom: 5px;">Tên món</th>
-                    <th style="text-align: center; padding-bottom: 5px;">SL</th>
-                    <th style="text-align: right; padding-bottom: 5px;">T.Tiền</th>
-                </tr>
-            </thead>
-            <tbody id="p-items-body"></tbody>
-        </table>
-
-        <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 5px; font-size: 11px;">
-            <table style="width: 100%;">
-                <tr>
-                    <td>Tổng tiền hàng:</td>
-                    <td style="text-align: right;" id="p-total-amount">0đ</td>
-                </tr>
-                <tr>
-                    <td>Chiết khấu:</td>
-                    <td style="text-align: right;" id="p-discount">0đ</td>
-                </tr>
-                <tr style="font-weight: bold; font-size: 13px;">
-                    <td>Khách cần trả:</td>
-                    <td style="text-align: right;" id="p-final-amount">0đ</td>
-                </tr>
-                <tr>
-                    <td>Khách đưa:</td>
-                    <td style="text-align: right;" id="p-paid">0đ</td>
-                </tr>
-                <tr>
-                    <td>Tiền thừa trả:</td>
-                    <td style="text-align: right;" id="p-change">0đ</td>
-                </tr>
-                <tr>
-                    <td>Hình thức:</td>
-                    <td style="text-align: right; font-weight: bold;" id="p-method">Tiền mặt</td>
-                </tr>
-            </table>
-            <div style="border-top: 1px dashed #000; margin-top: 10px;"></div>
-        </div>
-
-        <div style="text-align: center; margin-top: 15px; font-size: 11px;">
-            <p style="margin: 0; font-weight: bold;">CẢM ƠN QUÝ KHÁCH QUAY LẠI!</p>
-            <p style="margin: 5px 0 0 0; font-size: 9px;">Powered by Smart Grocer 2026</p>
+<div class="modal fade" id="quickCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold mb-0"><i class="bi bi-person-plus-fill me-2"></i>Thêm mới khách hàng nhanh</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">Họ và tên khách hàng <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-person text-muted"></i></span>
+                        <input type="text" id="quick-cust-name" class="form-control" placeholder="Nhập tên khách hàng...">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">Số điện thoại <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-telephone text-muted"></i></span>
+                        <input type="text" id="quick-cust-phone" class="form-control" placeholder="Nhập số điện thoại...">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-secondary">Mã vạch / Barcode (Tùy chọn)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-barcode text-muted"></i></span>
+                        <input type="text" id="quick-cust-barcode" class="form-control" placeholder="Để trống tự động tạo mã...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-white border-top-0 pt-0 pb-3 px-4">
+                <button type="button" class="btn btn-secondary px-3 fw-semibold" data-bs-dismiss="modal">Hủy bỏ</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" onclick="saveQuickCustomer()">
+                    <i class="bi bi-check-lg me-1"></i>Lưu & Chọn ngay
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
-    let cart = [];
-    let allCustomers = @json($customers);
+let cart = [];
+let currentProduct = null;
+let currentSelectedVariant = null;
+let currentCustomerPoints = 0;
+let minOrderAmountForRedeem = Number("{{ $minOrderAmountForRedeem }}") || 30000;
+let maxPointDiscountPercent = Number("{{ $maxPointDiscountPercent }}") || 50;
+let allCustomersList = JSON.parse('{!! json_encode($customers) !!}');
 
-    $('#customer-search').on('keyup', function() {
-        let keyword = $(this).val().toLowerCase().trim();
-        if (keyword === 'khách vãng lai' || keyword.length < 1) {
-            $('#customer-search-results').hide();
-            return;
-        }
-        let filtered = allCustomers.filter(c =>
-            c.name.toLowerCase().includes(keyword) ||
-            (c.phone_number && c.phone_number.includes(keyword)) ||
-            (c.barcode && c.barcode.toLowerCase().includes(keyword))
-        );
-        let html = '<button type="button" class="list-group-item list-group-item-action btn-select-customer" data-id="" data-name="Khách vãng lai" data-phone="Không có" data-barcode="Không có" data-debt="0">Khách vãng lai</button>';
-        if (filtered.length > 0) {
-            filtered.forEach(c => {
-                html += `
-                <button type="button" class="list-group-item list-group-item-action btn-select-customer"
-                    data-id="${c.id}"
-                    data-name="${c.name}"
-                    data-phone="${c.phone_number ? c.phone_number : 'Không có'}"
-                    data-barcode="${c.barcode ? c.barcode : 'Không có'}"
-                    data-debt="${c.total_debt ? c.total_debt : 0}">
-                    <div class="fw-semibold text-dark">${c.name}</div>
-                    <small class="text-muted">${c.phone_number ? c.phone_number : ''} ${c.barcode ? ' | Mã: ' + c.barcode : ''}</small>
-                </button>`;
-            });
-        } else {
-            html += '<div class="list-group-item text-muted small">Không tìm thấy khách hàng này</div>';
-        }
-        $('#customer-search-results').html(html).show();
+$(document).on('click', '.btn-select-product', function() {
+    let productId = $(this).data('product-id');
+    let productName = $(this).data('product-name');
+    let variants = $(this).data('variants');
+
+    if(!variants || variants.length === 0) return;
+
+    currentProduct = { id: productId, name: productName, variants: variants };
+    $('#productModalTitle').text(productName);
+
+    let variantHtml = '';
+    variants.forEach((v, idx) => {
+        let activeClass = idx === 0 ? 'btn-primary active' : 'btn-outline-primary';
+        variantHtml += `
+            <button class="btn btn-sm ${activeClass} fw-bold btn-variant-choice" data-variant-idx="${idx}">
+                ${v.variant_name}
+            </button>
+        `;
     });
+    $('#variant-btn-group').html(variantHtml);
 
-    $(document).on('click', '.btn-select-customer', function() {
-        let id = $(this).data('id');
-        let name = $(this).data('name');
-        let phone = $(this).data('phone');
-        let barcode = $(this).data('barcode');
-        let debt = parseFloat($(this).data('debt')) || 0;
-        $('#customer_id').val(id);
-        $('#customer-search').val(name);
-        $('#lbl-cust-phone').text(phone);
-        $('#lbl-cust-barcode').text(barcode);
-        $('#lbl-cust-debt').text(debt.toLocaleString('vi-VN') + 'đ');
-        $('#customer-search-results').hide();
-        calculateMoney();
+    selectVariant(0);
+    $('#productOptionsModal').modal('show');
+});
+
+$(document).on('click', '.btn-variant-choice', function() {
+    $('.btn-variant-choice').removeClass('btn-primary active').addClass('btn-outline-primary');
+    $(this).removeClass('btn-outline-primary').addClass('btn-primary active');
+
+    let idx = $(this).data('variant-idx');
+    selectVariant(idx);
+});
+
+function selectVariant(variantIndex) {
+    currentSelectedVariant = currentProduct.variants[variantIndex];
+    let units = currentSelectedVariant.units;
+
+    let unitHtml = '';
+    units.forEach((u) => {
+        unitHtml += `
+            <button class="btn btn-outline-success text-start d-flex justify-content-between align-items-center py-2 px-3 rounded-3 btn-unit-choice" 
+                    data-unit-id="${u.id}"
+                    data-unit-name="${u.unit_name}"
+                    data-sale-price="${u.sale_price}">
+                <span class="fw-bold fs-6">${u.unit_name}</span>
+                <span class="fw-bold text-danger fs-6">${Number(u.sale_price).toLocaleString()} đ</span>
+            </button>
+        `;
     });
+    $('#unit-btn-group').html(unitHtml);
+}
 
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#customer-search, #customer-search-results').length) {
-            $('#customer-search-results').hide();
-        }
-    });
+$(document).on('click', '.btn-unit-choice', function() {
+    let unitId = $(this).data('unit-id');
+    let unitName = $(this).data('unit-name');
+    let salePrice = $(this).data('sale-price');
 
-    $('#btn-save-customer').on('click', function() {
-        let name = $('#cust-new-name').val().trim();
-        let phone = $('#cust-new-phone').val().trim();
-        let barcode = $('#cust-new-barcode').val().trim();
-        if (!name || !phone) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Chú ý',
-                text: 'Vui lòng nhập đầy đủ các trường bắt buộc!',
-                confirmButtonColor: '#3085d6'
-            });
-            return;
-        }
-        $.ajax({
-            url: "{{ route('admin.pos.add_customer') }}",
-            type: "POST",
-            data: {
-                _token: "{{ csrf_token() }}",
-                name: name,
-                phone_number: phone,
-                barcode: barcode
-            },
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Thành công',
-                        text: response.message,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    allCustomers.push(response.customer);
-                    $('#customer_id').val(response.customer.id);
-                    $('#customer-search').val(response.customer.name);
-                    $('#lbl-cust-phone').text(response.customer.phone_number);
-                    $('#lbl-cust-barcode').text(response.customer.barcode);
-                    $('#lbl-cust-debt').text('0đ');
-                    $('#form-add-customer')[0].reset();
-                    $('#addCustomerModal').modal('hide');
-                    calculateMoney();
-                }
-            },
-            error: function(xhr) {
-                let res = xhr.responseJSON;
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Thất bại',
-                    text: res && res.message ? res.message : 'Lỗi không thể lưu khách hàng.'
-                });
-            }
-        });
-    });
+    addToCart(
+        currentProduct.id, 
+        currentProduct.name, 
+        currentSelectedVariant.variant_name, 
+        currentSelectedVariant.id, 
+        unitId, 
+        unitName, 
+        salePrice
+    );
 
-    $('#search-input').on('keyup', function() {
-        let keyword = $(this).val();
-        if (keyword.length < 1) {
-            $('#search-results').hide();
-            return;
-        }
-        $.ajax({
-            url: "{{ route('admin.pos.search') }}",
-            type: "GET",
-            data: {
-                keyword: keyword
-            },
-            success: function(data) {
-                let html = '';
-                if (data.length > 0) {
-                    data.forEach(item => {
-                        html += `
-                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center btn-select-product"
-                            data-id="${item.product_id}"
-                            data-unit-id="${item.product_unit_id}"
-                            data-name="${item.product_display_name}"
-                            data-unit="${item.unit_name}"
-                            data-price="${item.sale_price}">
-                            <div>
-                                <span class="fw-semibold text-dark">${item.product_display_name}</span> 
-                                <small class="text-muted d-block">Tồn kho hiện tại: ${item.current_stock}</small>
-                            </div>
-                        </button>`;
-                    });
-                    $('#search-results').html(html).show();
-                } else {
-                    $('#search-results').html('<div class="list-group-item text-muted">Không tìm thấy sản phẩm</div>').show();
-                }
-            }
-        });
-    });
+    $('#productOptionsModal').modal('hide');
+});
 
-    $(document).on('click', '.btn-select-product', function() {
-        let product = {
-            product_id: $(this).data('id'),
-            product_unit_id: $(this).data('unit-id'),
-            name: $(this).data('name'),
-            unit_name: $(this).data('unit'),
-            sale_price: parseFloat($(this).data('price')),
+function addToCart(productId, productName, variantName, variantId, unitId, unitName, salePrice) {
+    let existIndex = cart.findIndex(item => item.unit_id === unitId);
+    if(existIndex > -1) {
+        cart[existIndex].quantity += 1;
+    } else {
+        cart.push({
+            product_id: productId,
+            variant_id: variantId,
+            product_name: productName,
+            variant_name: variantName,
+            unit_id: unitId,
+            unit_name: unitName,
+            sale_price: Number(salePrice),
             quantity: 1
-        };
-        let existingIndex = cart.findIndex(item => item.product_unit_id === product.product_unit_id);
-        if (existingIndex > -1) {
-            cart[existingIndex].quantity += 1;
-        } else {
-            cart.push(product);
-        }
-        $('#search-input').val('');
-        $('#search-results').hide();
-        renderCart();
-    });
-
-    function renderCart() {
-        let html = '';
-        let totalAmount = 0;
-        if (cart.length === 0) {
-            html = `<tr><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-cart-x fs-2 d-block mb-2"></i> Chưa có sản phẩm nào trong giỏ</td></tr>`;
-            $('#cart-count').text('0 món');
-        } else {
-            cart.forEach((item, index) => {
-                let subtotal = item.sale_price * item.quantity;
-                totalAmount += subtotal;
-                html += `
-                <tr>
-                    <td class="ps-3 fw-semibold text-dark">${item.name}</td>
-                    <td><span class="badge bg-secondary">${item.unit_name}</span></td>
-                    <td><div class="input-group input-group-sm m-auto" style="width: 100px;"><input type="number" class="form-control text-center change-qty" data-index="${index}" value="${item.quantity}" min="1"></div></td>
-                    <td class="fw-medium">${item.sale_price.toLocaleString('vi-VN')}đ</td>
-                    <td class="fw-bold text-primary">${subtotal.toLocaleString('vi-VN')}đ</td>
-                    <td class="text-end pe-3"><button type="button" class="btn btn-sm btn-outline-danger btn-remove" data-index="${index}"><i class="bi bi-trash"></i></button></td>
-                </tr>`;
-            });
-            $('#cart-count').text(cart.length + ' món');
-        }
-        $('#cart-table-body').html(html);
-        calculateMoney(totalAmount);
-    }
-
-    $(document).on('change', '.change-qty', function() {
-        let index = $(this).data('index');
-        let newQty = parseInt($(this).val());
-        if (newQty > 0) {
-            cart[index].quantity = newQty;
-            renderCart();
-        }
-    });
-
-    $(document).on('click', '.btn-remove', function() {
-        let index = $(this).data('index');
-        cart.splice(index, 1);
-        renderCart();
-    });
-
-    function calculateMoney(totalAmount = null) {
-        if (totalAmount === null) {
-            totalAmount = cart.reduce((sum, item) => sum + (item.sale_price * item.quantity), 0);
-        }
-        let discount = parseFloat($('#input-discount').val()) || 0;
-        let finalAmount = totalAmount - discount;
-        if (finalAmount < 0) finalAmount = 0;
-        let method = $('#payment_method').val();
-        if (method === 'debt') {
-            $('#input-paid').val(0).prop('disabled', true);
-        } else {
-            $('#input-paid').prop('disabled', false);
-        }
-        let paidAmount = parseFloat($('#input-paid').val()) || 0;
-        let changeAmount = paidAmount - finalAmount;
-        if (changeAmount < 0) changeAmount = 0;
-        $('#txt-total-amount').text(totalAmount.toLocaleString('vi-VN') + 'đ');
-        $('#txt-final-amount').text(finalAmount.toLocaleString('vi-VN') + 'đ');
-        $('#txt-change-amount').text(changeAmount.toLocaleString('vi-VN') + 'đ');
-    }
-
-    $('#input-discount, #input-paid, #payment_method').on('input change', function() {
-        calculateMoney();
-    });
-
-    function executePrintReceipt(orderData, invoiceNumber) {
-        $('#p-invoice-number').text(invoiceNumber);
-        let now = new Date();
-        $('#p-date').text(now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit'
-        }));
-        $('#p-customer-name').text($('#customer-search').val());
-        $('#p-total-amount').text(orderData.total_amount.toLocaleString('vi-VN') + 'đ');
-        $('#p-discount').text(orderData.discount_amount.toLocaleString('vi-VN') + 'đ');
-        $('#p-final-amount').text(orderData.final_amount.toLocaleString('vi-VN') + 'đ');
-        $('#p-paid').text(orderData.paid_amount.toLocaleString('vi-VN') + 'đ');
-        $('#p-change').text(orderData.change_amount.toLocaleString('vi-VN') + 'đ');
-
-        let methodText = 'Tiền mặt';
-        if (orderData.payment_method === 'qr_code') methodText = 'Chuyển khoản';
-        if (orderData.payment_method === 'debt') methodText = 'Ghi nợ';
-        $('#p-method').text(methodText);
-
-        let itemsHtml = '';
-        cart.forEach(item => {
-            let total = item.sale_price * item.quantity;
-            itemsHtml += `
-            <tr style="border-bottom: 1px dotted #eee;">
-                <td style="padding: 5px 0;">${item.name}</td>
-                <td style="text-align: center; padding: 5px 0;">${item.quantity}</td>
-                <td style="text-align: right; padding: 5px 0;">${total.toLocaleString('vi-VN')}đ</td>
-            </tr>`;
         });
-        $('#p-items-body').html(itemsHtml);
+    }
+    renderCart();
+}
 
-        let iframe = document.getElementById('print-iframe');
-        if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'print-iframe';
-            iframe.style.position = 'absolute';
-            iframe.style.top = '-9999px';
-            iframe.style.left = '-9999px';
-            document.body.appendChild(iframe);
-        }
-
-        let doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write('<html><head><title>Print Invoice</title></head><body style="margin:0;">' + $('#print-section').html() + '</body></html>');
-        doc.close();
-
-        setTimeout(function() {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-        }, 500);
+function renderCart() {
+    if(cart.length === 0) {
+        $('#cart-body').html(`
+            <tr id="empty-cart-msg">
+                <td colspan="4" class="text-center py-5 text-muted small">
+                    <i class="bi bi-cart-x fs-1 d-block mb-2 text-secondary"></i>Chưa có sản phẩm nào trong giỏ
+                </td>
+            </tr>
+        `);
+        updateCalculations();
+        return;
     }
 
-    $('#btn-checkout').on('click', function() {
-        if (cart.length === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Giỏ hàng trống',
-                text: 'Vui lòng chọn sản phẩm trước khi thanh toán!',
-                confirmButtonColor: '#3085d6'
-            });
-            return;
-        }
-        let method = $('#payment_method').val();
-        let customerId = $('#customer_id').val();
-        if (method === 'debt' && !customerId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Chặn ghi nợ',
-                text: 'Không thể ghi nợ cho Khách vãng lai! Vui lòng chọn một khách hàng cụ thể.',
-                confirmButtonColor: '#d33'
-            });
-            return;
-        }
-        let totalAmount = cart.reduce((sum, item) => sum + (item.sale_price * item.quantity), 0);
-        let discount = parseFloat($('#input-discount').val()) || 0;
-        let finalAmount = totalAmount - discount;
-        let paidAmount = parseFloat($('#input-paid').val()) || 0;
-        let changeAmount = paidAmount - finalAmount;
+    let html = '';
+    cart.forEach((item, index) => {
+        let itemTotal = item.sale_price * item.quantity;
+        html += `
+            <tr>
+                <td class="ps-3 py-2">
+                    <div class="fw-bold text-dark small text-truncate" style="max-width: 130px;">${item.product_name}</div>
+                    <span class="text-muted" style="font-size:11px;">${item.variant_name}</span>
+                </td>
+                <td><span class="badge bg-light text-dark border">${item.unit_name}</span></td>
+                <td>
+                    <div class="input-group input-group-sm" style="width: 80px;">
+                        <button class="btn btn-outline-secondary px-1" onclick="updateQty(${index}, -1)">-</button>
+                        <input type="text" class="form-control text-center px-0 fw-bold" value="${item.quantity}" readonly>
+                        <button class="btn btn-outline-secondary px-1" onclick="updateQty(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td class="text-end pe-3 fw-bold text-danger small">
+                    ${itemTotal.toLocaleString()}đ
+                    <i class="bi bi-x-circle text-muted ms-1 style-pointer" onclick="removeFromCart(${index})" title="Xóa món"></i>
+                </td>
+            </tr>
+        `;
+    });
+    $('#cart-body').html(html);
+    updateCalculations();
+}
 
-        let orderData = {
+function updateQty(index, change) {
+    cart[index].quantity += change;
+    if(cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+    }
+    renderCart();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderCart();
+}
+
+function updateCalculations() {
+    let subtotal = cart.reduce((sum, item) => sum + (item.sale_price * item.quantity), 0);
+    let discount = Number($('#input-discount').val()) || 0;
+    let customerId = $('#selected-customer-id').val();
+
+    let maxByPercent = Math.floor(subtotal * (maxPointDiscountPercent / 100));
+    let maxAllowedPoints = Math.min(currentCustomerPoints, maxByPercent);
+
+    let chkPoints = $('#chk-use-points');
+    
+    if (!customerId || subtotal < minOrderAmountForRedeem || currentCustomerPoints <= 0) {
+        chkPoints.prop('disabled', true).prop('checked', false);
+        $('#lbl-point-discount-val').text('-0 đ');
+    } else {
+        chkPoints.prop('disabled', false);
+    }
+
+    let pointDiscountMoney = 0;
+    if (chkPoints.is(':checked')) {
+        pointDiscountMoney = maxAllowedPoints;
+        $('#lbl-point-discount-val').text(`-${pointDiscountMoney.toLocaleString()} đ (${maxAllowedPoints}pt)`);
+    } else {
+        $('#lbl-point-discount-val').text(`0 đ (Được dùng ${maxAllowedPoints.toLocaleString()}pt)`);
+    }
+
+    let finalTotal = Math.max(0, subtotal - discount - pointDiscountMoney);
+    let paidAmount = Number($('#input-paid-amount').val()) || 0;
+
+    $('#txt-subtotal').text(subtotal.toLocaleString() + ' đ');
+    $('#txt-final-total').text(finalTotal.toLocaleString() + ' đ');
+
+    if (paidAmount >= finalTotal) {
+        let change = paidAmount - finalTotal;
+        $('#label-change-debt').text('Tiền thừa trả khách:').removeClass('text-danger').addClass('text-muted');
+        $('#txt-change-amount').text(change.toLocaleString() + ' đ').removeClass('text-danger').addClass('text-primary');
+    } else {
+        let debt = finalTotal - paidAmount;
+        $('#label-change-debt').text('Khách còn thiếu (Nợ):').removeClass('text-muted').addClass('text-danger');
+        $('#txt-change-amount').text(debt.toLocaleString() + ' đ').removeClass('text-primary').addClass('text-danger');
+    }
+}
+
+$('#chk-use-points').on('change', updateCalculations);
+$('#input-discount, #input-paid-amount').on('input', updateCalculations);
+
+$('#input-search-customer').on('input', function() {
+    let kw = $(this).val().toLowerCase().trim();
+    let suggestionsBox = $('#customer-suggestions-box');
+
+    if (kw === '') {
+        suggestionsBox.hide().empty();
+        return;
+    }
+
+    suggestionsBox.empty();
+
+    let matched = allCustomersList.filter(c => 
+        (c.name && c.name.toLowerCase().includes(kw)) || 
+        (c.phone_number && c.phone_number.includes(kw))
+    );
+
+    if (matched.length > 0) {
+        matched.forEach(c => {
+            let pts = Number(c.current_points || 0);
+            let itemHtml = `
+                <div class="p-2 border-bottom customer-suggestion-item" data-id="${c.id}">
+                    <div class="fw-bold text-dark small">👤 ${c.name}</div>
+                    <div class="text-muted d-flex justify-content-between" style="font-size: 11px;">
+                        <span>📞 ${c.phone_number}</span>
+                        <span>⭐ ${pts.toLocaleString()} pt | 💳 Nợ: ${Number(c.total_debt || 0).toLocaleString()}đ</span>
+                    </div>
+                </div>
+            `;
+            suggestionsBox.append(itemHtml);
+        });
+        suggestionsBox.show();
+    } else {
+        suggestionsBox.html('<div class="p-2 text-muted small text-center">Không tìm thấy khách hàng nào</div>').show();
+    }
+});
+
+$(document).on('click', '.customer-suggestion-item', function() {
+    let id = $(this).data('id');
+    let customer = allCustomersList.find(c => c.id == id);
+
+    if(customer) {
+        selectCustomerObj(customer);
+    }
+    $('#customer-suggestions-box').hide();
+});
+
+$(document).on('click', function(e) {
+    if(!$(e.target).closest('#input-search-customer, #customer-suggestions-box').length) {
+        $('#customer-suggestions-box').hide();
+    }
+});
+
+function selectCustomerObj(customer) {
+    $('#selected-customer-id').val(customer.id);
+    $('#input-search-customer').val(`👤 ${customer.name} - ${customer.phone_number}`).prop('readonly', true);
+    $('#btn-clear-customer').removeClass('d-none');
+
+    currentCustomerPoints = Number(customer.current_points || 0);
+
+    $('#cust-points').text(currentCustomerPoints.toLocaleString());
+    $('#cust-debt').text(Number(customer.total_debt || 0).toLocaleString());
+    $('#customer-info-box').removeClass('d-none');
+
+    updateCalculations();
+}
+
+$('#btn-clear-customer').on('click', function() {
+    $('#selected-customer-id').val('');
+    $('#input-search-customer').val('').prop('readonly', false);
+    $(this).addClass('d-none');
+    $('#customer-info-box').addClass('d-none');
+    currentCustomerPoints = 0;
+    $('#chk-use-points').prop('checked', false).prop('disabled', true);
+    updateCalculations();
+});
+
+function saveQuickCustomer() {
+    let name = $('#quick-cust-name').val().trim();
+    let phone = $('#quick-cust-phone').val().trim();
+    let barcode = $('#quick-cust-barcode').val().trim();
+
+    if (!name) {
+        Swal.fire('Chú ý', 'Vui lòng nhập họ và tên khách hàng!', 'warning');
+        $('#quick-cust-name').focus();
+        return;
+    }
+
+    if (!phone) {
+        Swal.fire('Chú ý', 'Vui lòng nhập số điện thoại!', 'warning');
+        $('#quick-cust-phone').focus();
+        return;
+    }
+
+    let phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(phone)) {
+        Swal.fire('Chú ý', 'Số điện thoại phải từ 10 - 11 chữ số!', 'warning');
+        $('#quick-cust-phone').focus();
+        return;
+    }
+
+    $.ajax({
+        url: "{{ route('admin.pos.quick_customer') }}",
+        type: "POST",
+        data: {
             _token: "{{ csrf_token() }}",
-            cart: cart,
-            customer_id: customerId,
-            total_amount: totalAmount,
-            discount_amount: discount,
-            final_amount: finalAmount > 0 ? finalAmount : 0,
-            paid_amount: paidAmount,
-            change_amount: changeAmount > 0 ? changeAmount : 0,
-            payment_method: method
-        };
+            name: name,
+            phone_number: phone,
+            barcode: barcode
+        },
+        success: function(res) {
+            if (res.success) {
+                let c = res.customer;
+                allCustomersList.push(c);
+                selectCustomerObj(c);
 
-        $.ajax({
-            url: "{{ route('admin.pos.checkout') }}",
-            type: "POST",
-            data: orderData,
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Thành công',
-                        text: response.message,
-                        showCancelButton: true,
-                        confirmButtonColor: '#3085d6',
-                        cancelButtonColor: '#6c757d',
-                        confirmButtonText: '<i class="bi bi-printer me-1"></i> In hóa đơn',
-                        cancelButtonText: 'Đóng lại'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            executePrintReceipt(orderData, response.invoice_number);
-                            setTimeout(function() {
-                                window.location.reload();
-                            }, 1500);
-                        } else {
-                            window.location.reload();
-                        }
-                    });
-                }
-            },
-            error: function(xhr) {
-                let res = xhr.responseJSON;
+                $('#quickCustomerModal').modal('hide');
+                $('#quick-cust-name, #quick-cust-phone, #quick-cust-barcode').val('');
+                Swal.fire('Thành công', 'Đã thêm và tự động chọn khách hàng mới!', 'success');
+            }
+        },
+        error: function(xhr) {
+            let res = xhr.responseJSON;
+            let errorMsg = 'Có lỗi xảy ra khi lưu khách hàng!';
+            
+            if (res && res.errors) {
+                let firstKey = Object.keys(res.errors)[0];
+                errorMsg = res.errors[firstKey][0];
+            } else if (res && res.message) {
+                errorMsg = res.message;
+            }
+
+            Swal.fire('Lỗi', errorMsg, 'error');
+        }
+    });
+}
+
+$('#search-product').on('input', function() {
+    let kw = $(this).val().toLowerCase().trim();
+    $('.pos-product-item').each(function() {
+        let name = $(this).data('name');
+        if(name.includes(kw)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+});
+
+$('.category-badge-btn').on('click', function() {
+    $('.category-badge-btn').removeClass('btn-primary active').addClass('btn-outline-secondary');
+    $(this).removeClass('btn-outline-secondary').addClass('btn-primary active');
+
+    let cateId = $(this).data('category-id');
+    $('.pos-product-item').each(function() {
+        if(cateId === 'all' || $(this).data('category') == cateId) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+});
+
+function submitOrder() {
+    if(cart.length === 0) {
+        Swal.fire('Chú ý', 'Vui lòng chọn ít nhất 1 sản phẩm!', 'warning');
+        return;
+    }
+
+    let customerId = $('#selected-customer-id').val();
+    let paymentMethod = $('input[name="payment_method"]:checked').val();
+    let paidAmount = Number($('#input-paid-amount').val()) || 0;
+
+    let subtotal = cart.reduce((sum, item) => sum + (item.sale_price * item.quantity), 0);
+    let discount = Number($('#input-discount').val()) || 0;
+    let applyPoints = $('#chk-use-points').is(':checked');
+
+    let maxByPercent = Math.floor(subtotal * (maxPointDiscountPercent / 100));
+    let pointDiscountMoney = applyPoints ? Math.min(currentCustomerPoints, maxByPercent) : 0;
+    let finalTotal = Math.max(0, subtotal - discount - pointDiscountMoney);
+
+    if (paidAmount < finalTotal && !customerId) {
+        Swal.fire('Yêu cầu Khách hàng', 'Khách hàng thanh toán chưa đủ (' + (finalTotal - paidAmount).toLocaleString() + 'đ). Bắt buộc phải chọn/tạo Khách hàng để ghi nợ!', 'warning');
+        return;
+    }
+
+    let data = {
+        _token: "{{ csrf_token() }}",
+        customer_id: customerId,
+        payment_method: paymentMethod,
+        discount_amount: discount,
+        apply_points: applyPoints,
+        paid_amount: paidAmount,
+        items: cart
+    };
+
+    $('#btn-submit-order').prop('disabled', true).html('Đang xử lý...');
+
+    $.ajax({
+        url: "{{ route('admin.pos.checkout') }}",
+        type: "POST",
+        data: data,
+        success: function(res) {
+            if(res.success) {
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Thanh toán thất bại',
-                    text: res && res.message ? res.message : 'Lỗi hệ thống không xác định.'
+                    title: 'Thành công!',
+                    text: `Đã thanh toán hóa đơn #${res.invoice_number}`,
+                    icon: 'success'
+                }).then(() => {
+                    cart = [];
+                    $('#input-discount, #input-paid-amount').val('');
+                    $('#chk-use-points').prop('checked', false);
+                    renderCart();
+                    location.reload();
                 });
             }
-        });
+        },
+        error: function(xhr) {
+            let res = xhr.responseJSON;
+            Swal.fire('Lỗi thanh toán', res && res.message ? res.message : 'Kiểm tra lại dữ liệu!', 'error');
+        },
+        complete: function() {
+            $('#btn-submit-order').prop('disabled', false).html('<i class="bi bi-printer-fill me-2"></i>THANH TOÁN & IN HÓA ĐƠN');
+        }
     });
+}
 </script>
 @endsection
