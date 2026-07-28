@@ -9,6 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -155,14 +158,20 @@
                     <span class="text-muted small fw-medium">Hệ thống POS thông minh</span>
                 </div>
 
+                @php
+                $role = Auth::user()->role->name ?? '';
+                $isSuperAdmin = ($role === 'super_admin');
+                $isAdminOrManager = in_array($role, ['super_admin', 'manager']);
+                @endphp
+
                 <ul class="nav nav-pills flex-column">
                     <li class="nav-item">
-                        <a href="{{ route('dashboard') }}" class="nav-link {{ Request::is('dashboard') ? 'active' : '' }}">
+                        <a href="{{ route('dashboard') }}" class="nav-link {{ Request::is('dashboard') || Request::is('admin') || Request::is('admin/dashboard') ? 'active' : '' }}">
                             <i class="bi bi-grid-1x2-fill me-3"></i>Trang chủ chung
                         </a>
                     </li>
 
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
+                    @if($isAdminOrManager)
                     <li class="nav-item mb-2">
                         <a class="nav-link d-flex align-items-center justify-content-between {{ Request::is('admin/danh-muc') || Request::is('admin/san-pham*') ? 'active' : '' }}"
                             data-bs-toggle="collapse"
@@ -183,14 +192,12 @@
                                         <span>Danh mục sản phẩm</span>
                                     </a>
                                 </li>
-
                                 <li class="nav-item mt-1">
                                     <a href="/admin/san-pham" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/san-pham*') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
-                                        <i class="bi bi-box-seam fs-6 text-center me-2" style="width: 20px;"></i> <span>Danh sách sản phẩm</span>
+                                        <i class="bi bi-box-seam fs-6 text-center me-2" style="width: 20px;"></i>
+                                        <span>Danh sách sản phẩm</span>
                                     </a>
                                 </li>
-
-
                             </ul>
                         </div>
                     </li>
@@ -202,76 +209,69 @@
                             role="button"
                             aria-expanded="{{ Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'true' : 'false' }}">
                             <div>
-                                <i class="bi bi-box-seam me-3"></i>Quản lý Kho
+                                <i class="bi bi-boxes me-3"></i>Quản lý Kho
                             </div>
                             <i class="bi bi-chevron-down small chevron-icon"></i>
                         </a>
 
-                        <div class="collapse {{Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'show' : '' }} ms-3 mt-1" id="menuKho">
+                        <div class="collapse {{ Request::is('admin/nhap-kho') || Request::is('admin/lich-su-nhap-kho') || Request::is('admin/nha-cung-cap') ? 'show' : '' }} ms-3 mt-1" id="menuKho">
                             <ul class="nav flex-column border-start text-start ps-2" style="border-color: #dee2e6 !important;">
                                 <li class="nav-item mt-1">
                                     <a href="/admin/nhap-kho" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/nhap-kho') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
-                                        <i class="bi bi-file-earmark-arrow-down fs-6 text-center me-2" style="width: 20px;"></i> <span>Phiếu nhập kho</span>
+                                        <i class="bi bi-file-earmark-arrow-down fs-6 text-center me-2" style="width: 20px;"></i>
+                                        <span>Phiếu nhập kho</span>
                                     </a>
                                 </li>
-
                                 <li class="nav-item mt-1">
                                     <a href="{{ route('admin.purchase.history') }}" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/lich-su-nhap-kho') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
                                         <i class="bi bi-clock-history fs-6 text-center me-2" style="width: 20px;"></i>
                                         <span>Lịch sử nhập kho</span>
                                     </a>
                                 </li>
-
                                 <li class="nav-item mt-1">
                                     <a href="/admin/nha-cung-cap" class="nav-link py-2 px-3 rounded-2 small d-flex align-items-center transition-all {{ Request::is('admin/nha-cung-cap') ? 'bg-light text-primary fw-semibold' : 'text-secondary opacity-75' }}">
                                         <i class="bi bi-truck fs-6 text-center me-2" style="width: 20px;"></i>
                                         <span>Nhà cung cấp</span>
                                     </a>
                                 </li>
-
                             </ul>
                         </div>
                     </li>
-
                     @endif
 
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
-                    <li>
-                        <a href="/kho/kiem-hang" class="nav-link {{ Request::is('kho/*') ? 'active' : '' }}">
-                            <i class="bi bi-boxes me-3"></i>Quản lý kho hàng
-                        </a>
-                    </li>
-                    @endif
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager', 'staff']))
-                    <li>
-                        <a href="/admin/pos/ban-hang" class="nav-link {{ Request::is('pos/*') ? 'active' : '' }}">
+                    <li class="nav-item">
+                        <a href="/admin/pos/ban-hang" class="nav-link {{ Request::is('admin/pos*') || Request::is('pos/*') ? 'active' : '' }}">
                             <i class="bi bi-qr-code-scan me-3"></i>Màn hình bán hàng POS
                         </a>
                     </li>
-                    @endif
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager', 'staff']))
-                    <li>
+
+                    <li class="nav-item">
                         <a href="/admin/orders" class="nav-link {{ Request::is('admin/orders*') ? 'active' : '' }}">
                             <i class="bi bi-receipt me-3"></i>Quản lý đơn hàng
                         </a>
                     </li>
-                    @endif
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
-                    <li>
+
+                    <li class="nav-item">
                         <a href="/admin/cong-no" class="nav-link {{ Request::is('admin/cong-no*') ? 'active' : '' }}">
                             <i class="bi bi-wallet2 me-3"></i>Quản lý công nợ
                         </a>
                     </li>
-                    @endif
-                    @if(in_array(Auth::user()->role->name, ['super_admin', 'manager']))
-                    <li>
+
+                    <li class="nav-item">
+                        <a href="/admin/khach-hang" class="nav-link {{ Request::is('admin/khach-hang*') ? 'active' : '' }}">
+                            <i class="bi bi-person-lines-fill me-3"></i>Quản lý khách hàng
+                        </a>
+                    </li>
+
+                    @if($isSuperAdmin)
+                    <li class="nav-item">
                         <a href="/admin/nhan-vien" class="nav-link {{ Request::is('admin/nhan-vien*') ? 'active' : '' }}">
                             <i class="bi bi-people me-3"></i>Quản lý nhân viên
                         </a>
                     </li>
-                    <li>
-                        <a href="/admin/khach-hang" class="nav-link {{ Request::is('admin/khach-hang*') ? 'active' : '' }}">
-                            <i class="bi bi-person-lines-fill me-3"></i>Quản lý khách hàng
+                    <li class="nav-item">
+                        <a href="{{ route('admin.settings.index') }}" class="nav-link {{ Request::is('admin/settings*') ? 'active' : '' }}">
+                            <i class="bi bi-gear-wide-connected me-3"></i>Cấu hình hệ thống
                         </a>
                     </li>
                     @endif

@@ -36,7 +36,6 @@ class PurchaseController extends Controller
         return redirect()->back()->with('success', 'Thêm nhà cung cấp mới thành công!');
     }
 
-    // HÀM CẬP NHẬT (SỬA)
     public function updateSupplier(Request $request, $id)
     {
         $supplier = Supplier::findOrFail($id);
@@ -50,7 +49,6 @@ class PurchaseController extends Controller
         return redirect()->back()->with('success', 'Cập nhật nhà cung cấp thành công!');
     }
 
-    // HÀM XÓA
     public function destroySupplier($id)
     {
         $supplier = Supplier::findOrFail($id);
@@ -72,13 +70,11 @@ class PurchaseController extends Controller
             $batchCode = 'LH-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(4));
         }
 
-        // Lấy ID của user (nhân viên/admin) đang đăng nhập vào hệ thống
         $userId = Auth::id() ?? 1;
 
         DB::transaction(function () use ($request, $batchCode, $userId) {
             foreach ($request->items as $productId => $item) {
 
-                // 1. Lưu lịch sử lô hàng vào bảng batches
                 DB::table('batches')->insert([
                     'product_id' => $productId,
                     'supplier_id' => $request->supplier_id,
@@ -92,13 +88,11 @@ class PurchaseController extends Controller
                     'updated_at' => now(),
                 ]);
 
-                // 2. Tìm ID biến thể từ bảng product_variants
                 $variantId = DB::table('product_variants')
                     ->where('product_id', $productId)
                     ->value('id');
 
                 if ($variantId) {
-                    // 3. Lấy số lượng tồn cũ và giá nhập cũ từ bảng product_units
                     $currentUnit = DB::table('product_units')
                         ->where('product_variant_id', $variantId)
                         ->first();
@@ -110,14 +104,12 @@ class PurchaseController extends Controller
                         $newStock = $item['quantity'];
                         $newPrice = $item['purchase_price'];
 
-                        // 4. Áp dụng công thức tính giá vốn trung bình gia tốc
                         if (($oldStock + $newStock) > 0) {
                             $averagePrice = (($oldStock * $oldPrice) + ($newStock * $newPrice)) / ($oldStock + $newStock);
                         } else {
                             $averagePrice = $newPrice;
                         }
 
-                        // 5. Cập nhật giá nhập trung bình mới VÀ cộng dồn số lượng tồn kho vào product_units
                         DB::table('product_units')
                             ->where('product_variant_id', $variantId)
                             ->update([
@@ -126,11 +118,10 @@ class PurchaseController extends Controller
                                 'updated_at' => now()
                             ]);
 
-                        // 6. ĐỒNG BỘ CHUẨN: Ghi nhận log vào bảng inventory_logs của bạnh
                         DB::table('inventory_logs')->insert([
                             'product_id'   => $productId,
                             'user_id'      => $userId,
-                            'change_type'  => 'import', // Khớp với enum 'import' (nhập kho) của bạnh
+                            'change_type'  => 'import',
                             'quantity'     => $newStock,
                             'note'         => 'Nhập kho tự động theo phiếu nhập: ' . $batchCode,
                             'created_at'   => now(),

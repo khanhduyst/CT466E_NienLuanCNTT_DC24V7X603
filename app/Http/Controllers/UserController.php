@@ -87,7 +87,6 @@ class UserController extends Controller
         return response()->json(['success' => true, 'message' => 'Cập nhật thông tin nhân viên thành công!']);
     }
 
-    // Hàm cấp lại Mật khẩu ngẫu nhiên & gửi Mail
     public function resetPassword($id)
     {
         $user = DB::table('users')->where('id', $id)->first();

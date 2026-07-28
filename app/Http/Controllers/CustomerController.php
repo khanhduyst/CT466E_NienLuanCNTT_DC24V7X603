@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
-    // Trang danh sách khách hàng (Có phân trang chính)
     public function index(Request $request)
     {
         $query = DB::table('customers');
@@ -21,13 +20,11 @@ class CustomerController extends Controller
             });
         }
 
-        // Phân trang danh sách khách hàng (10 khách/trang)
         $customers = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
         return view('customers.index', compact('customers'));
     }
 
-    // Thêm mới khách hàng
     public function store(Request $request)
     {
         $request->validate([
@@ -68,14 +65,12 @@ class CustomerController extends Controller
         return response()->json(['success' => true, 'message' => 'Cập nhật thông tin khách hàng thành công!']);
     }
 
-    // Xóa khách hàng
     public function destroy($id)
     {
         DB::table('customers')->where('id', $id)->delete();
         return response()->json(['success' => true, 'message' => 'Xóa khách hàng thành công!']);
     }
 
-    // Lấy danh sách đơn mua (Phân trang AJAX 5 đơn/trang)
     public function getOrders($id)
     {
         try {
@@ -88,13 +83,11 @@ class CustomerController extends Controller
                 return response()->json($orders);
             }
         } catch (\Exception $e) {
-            // Trả về rỗng nếu chưa có dữ liệu/lỗi
         }
 
         return response()->json(['data' => []]);
     }
 
-    // Lấy lịch sử công nợ (Phân trang AJAX 5 dòng/trang)
     public function getDebts($id)
     {
         try {
@@ -107,7 +100,6 @@ class CustomerController extends Controller
                 return response()->json($debts);
             }
         } catch (\Exception $e) {
-            // Trả về rỗng nếu chưa có dữ liệu/lỗi
         }
 
         return response()->json(['data' => []]);
@@ -120,12 +112,10 @@ class CustomerController extends Controller
                 $points = DB::table('point_logs')
                     ->where('customer_id', $id)
                     ->orderBy('id', 'desc')
-                    ->paginate(5); // 5 lịch sử / trang
-
+                    ->paginate(5);
                 return response()->json($points);
             }
         } catch (\Exception $e) {
-            // Lỗi query hoặc chưa có dữ liệu
         }
 
         return response()->json(['data' => []]);

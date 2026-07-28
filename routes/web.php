@@ -10,7 +10,8 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\userController;
 use App\Http\Controllers\customerController;
-
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -29,6 +30,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/cau-hinh', function () {
         return view('admin.setting');
     })->middleware('role:super_admin');
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/admin', [DashboardController::class, 'index']);
+    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
 
     Route::get('/admin/nhan-vien', [UserController::class, 'index'])->name('admin.users.index');
     Route::post('/admin/nhan-vien/store', [UserController::class, 'store'])->name('admin.users.store');
@@ -77,6 +82,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/cong-no', [DebtController::class, 'index'])->name('admin.debts.index');
     Route::get('/admin/cong-no/{id}/lich-su', [DebtController::class, 'getLogs'])->name('admin.debts.logs');
     Route::post('/admin/cong-no/thanh-toan', [DebtController::class, 'payDebt'])->name('admin.debts.pay');
+
+    Route::get('/admin/settings', [SettingController::class, 'index'])->name('admin.settings.index');
+    Route::post('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
     // Route::get('/kho/kiem-hang', function () {
     //     return view('inventory.index');
     // })->middleware('role:super_admin,manager');

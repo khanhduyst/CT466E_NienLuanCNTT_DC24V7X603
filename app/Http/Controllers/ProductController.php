@@ -15,7 +15,6 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $categories = Category::where('is_deleted', 0)->get();
-        // Lấy danh sách Nhà cung cấp
         $suppliers = DB::table('suppliers')->orderBy('name', 'asc')->get();
 
         $query = Product::with(['category', 'variants.units']);
@@ -41,7 +40,6 @@ class ProductController extends Controller
 
         $products = $query->orderBy('id', 'desc')->paginate(5)->withQueryString();
 
-        // Gắn thêm supplier_id từ lô hàng (batches) mới nhất vào từng sản phẩm
         foreach ($products as $p) {
             $latestBatch = DB::table('batches')->where('product_id', $p->id)->orderBy('id', 'desc')->first();
             $p->supplier_id = $latestBatch ? $latestBatch->supplier_id : null;
@@ -85,7 +83,6 @@ class ProductController extends Controller
                 $request->file('image')->move(public_path('uploads/products'), $imageName);
             }
 
-            // 1. Tạo sản phẩm chính
             $product = Product::create([
                 'name' => $request->name,
                 'category_id' => $request->category_id,
@@ -94,7 +91,6 @@ class ProductController extends Controller
 
             $productId = $product->id;
 
-            // Log hoạt động
             DB::table('activity_logs')->insert([
                 'user_id' => $userId,
                 'action' => "Thêm mới sản phẩm chính: {$product->name} (ID: {$productId})",
@@ -107,7 +103,6 @@ class ProductController extends Controller
             $totalInitialStock = 0;
             $firstImportPrice = 0;
 
-            // 2. Tạo biến thể & đơn vị tính
             foreach ($request->variants as $vData) {
                 $variant = ProductVariant::create([
                     'product_id' => $productId,
@@ -159,7 +154,6 @@ class ProductController extends Controller
                 }
             }
 
-            // 3. Nếu chọn Nhà cung cấp, TỰ ĐỘNG TẠO BẢN GHI LÔ HÀNG (batches)
             if ($request->supplier_id) {
                 DB::table('batches')->insert([
                     'product_id' => $productId,
@@ -216,7 +210,6 @@ class ProductController extends Controller
                 'image' => $product->image,
             ]);
 
-            // Cập nhật hoặc Thêm mới Nhà cung cấp vào lô hàng (batches)
             if ($request->supplier_id) {
                 $latestBatch = DB::table('batches')->where('product_id', $productId)->orderBy('id', 'desc')->first();
                 if ($latestBatch) {
