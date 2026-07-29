@@ -388,17 +388,36 @@
                 </div>
 
                 <div class="d-flex align-items-center">
-                    <div class="me-2 me-sm-3 text-end">
-                        <div class="fw-bold text-dark" style="font-size: 13px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ Auth::user()->name }}</div>
-                        <div class="text-muted fw-semibold" style="font-size: 11px;">
-                            @if(Auth::user()->role->name == 'super_admin') CHỦ CỬA HÀNG
-                            @elseif(Auth::user()->role->name == 'manager') QUẢN LÝ
-                            @else THU NGÂN
-                            @endif
-                        </div>
-                    </div>
-                    <div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 38px; height: 38px;">
-                        <i class="bi bi-person text-secondary fs-5"></i>
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle p-1 rounded-3" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="me-2 text-end d-none d-sm-block">
+                                <div class="fw-bold text-dark" style="font-size: 13px; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    {{ Auth::user()->name }}
+                                </div>
+                                <div class="text-muted fw-semibold" style="font-size: 11px;">
+                                    @if(Auth::user()->role->name == 'super_admin') CHỦ CỬA HÀNG
+                                    @elseif(Auth::user()->role->name == 'manager') QUẢN LÝ
+                                    @else THU NGÂN
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center border" style="width: 38px; height: 38px;">
+                                <i class="bi bi-person text-secondary fs-5"></i>
+                            </div>
+                        </a>
+
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow-sm rounded-3 mt-2 p-2">
+                            <li>
+                                <a class="dropdown-item rounded-2 py-2 small fw-medium" href="{{ route('profile.show') }}">
+                                    <i class="bi bi-person-gear me-2 text-primary"></i>Thông tin cá nhân
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item rounded-2 py-2 small fw-medium" href="{{ route('profile.password') }}">
+                                    <i class="bi bi-shield-lock me-2 text-warning"></i>Đổi mật khẩu
+                                </a>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>

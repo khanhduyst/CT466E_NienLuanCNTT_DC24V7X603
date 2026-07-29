@@ -47,7 +47,6 @@ class CustomerController extends Controller
         return response()->json(['success' => true, 'message' => 'Thêm khách hàng thành công!']);
     }
 
-    // Cập nhật khách hàng
     public function update(Request $request, $id)
     {
         $request->validate([

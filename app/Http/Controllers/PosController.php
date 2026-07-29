@@ -13,8 +13,12 @@ class PosController extends Controller
 {
     public function index()
     {
-        $categories = Category::where('is_deleted', 0)->get();
-        
+        $categories = Category::where('is_deleted', 0)
+            ->where(function ($q) {
+                $q->whereNull('parent_id')->orWhere('parent_id', 0);
+            })
+            ->get();
+
         $products = Product::where('is_deleted', 0)
             ->with(['variants.units'])
             ->orderBy('id', 'desc')
@@ -133,7 +137,7 @@ class PosController extends Controller
             $totalDiscount = $discountAmount + $pointDiscountMoney;
             $finalAmount = max(0, $totalAmount - $totalDiscount);
             $paidAmount = (float)$request->paid_amount;
-            
+
             $debtAmount = max(0, $finalAmount - $paidAmount);
             if ($debtAmount > 0) {
                 if (!$customerId) {
@@ -174,7 +178,7 @@ class PosController extends Controller
                 ]);
 
                 $deductStockQty = $iData['quantity'] * $iData['conversion_rate'];
-                
+
                 $baseUnit = DB::table('product_units')
                     ->where('product_variant_id', $iData['variant_id'])
                     ->where('is_base', true)
@@ -198,7 +202,7 @@ class PosController extends Controller
             if ($customerId) {
                 if ($usePoints > 0) {
                     DB::table('customers')->where('id', $customerId)->decrement('current_points', $usePoints);
-                    
+
                     DB::table('point_logs')->insert([
                         'customer_id' => $customerId,
                         'order_id' => $orderId,
@@ -257,7 +261,6 @@ class PosController extends Controller
                 'invoice_number' => $invoiceNumber,
                 'order_id' => $orderId
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);

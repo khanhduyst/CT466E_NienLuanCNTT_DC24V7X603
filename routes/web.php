@@ -31,6 +31,12 @@ Route::middleware(['auth'])->group(function () {
         return view('admin.setting');
     })->middleware('role:super_admin');
 
+    Route::get('/profile', [UserController::class, 'showProfile'])->name('profile.show');
+    Route::put('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
+
+    Route::get('/profile/password', [UserController::class, 'showPasswordForm'])->name('profile.password');
+    Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('profile.password.update');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/admin', [DashboardController::class, 'index']);
     Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
